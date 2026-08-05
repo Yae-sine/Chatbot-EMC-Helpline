@@ -1,75 +1,90 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChatInput } from "./ChatInput";
+import { useEffect, useMemo, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
-import { t } from "@/lib/i18n";
+import { ChatInput } from "./ChatInput";
+import { TypingIndicator } from "./TypingIndicator";
+import { WelcomeScreen } from "./WelcomeScreen";
 import type { ChatMessage } from "@/types/chat";
 
-export function ChatWindow() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
+interface ChatWindowProps {
+  messages: ChatMessage[];
+  isTyping: boolean;
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  onSend: (text: string) => void;
+  onSelectPrompt: (prompt: string) => void;
+  composerFocusSignal: number;
+}
+
+function buildGroups(messages: ChatMessage[]): ChatMessage[][] {
+  const groups: ChatMessage[][] = [];
+  for (const message of messages) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].role === message.role) {
+      last.push(message);
+    } else {
+      groups.push([message]);
+    }
+  }
+  return groups;
+}
+
+export function ChatWindow({
+  messages,
+  isTyping,
+  inputValue,
+  onInputChange,
+  onSend,
+  onSelectPrompt,
+  composerFocusSignal,
+}: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const groups = useMemo(() => buildGroups(messages), [messages]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, isTyping]);
 
-  const sendMessage = async (text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", text },
-    ]);
-    setIsTyping(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-      const data = (await res.json()) as { text: string; isCrisis: boolean };
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: data.text,
-          isCrisis: data.isCrisis,
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "assistant", text: t("fr", "emptyMessage") },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-md flex-col bg-background">
-      <header className="border-b border-black/5 bg-white px-4 py-3">
-        <h1 className="text-base font-semibold text-foreground">{t("fr", "chatTitle")}</h1>
-        <p className="text-xs text-foreground/60">{t("fr", "chatSubtitle")}</p>
-      </header>
-
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-bubble-bot px-4 py-3 text-sm text-foreground/60">
-              {t("fr", "typing")}
-            </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-y-auto scroll-smooth">
+        {messages.length === 0 ? (
+          <WelcomeScreen onSelectPrompt={onSelectPrompt} />
+        ) : (
+          <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6 sm:px-6">
+            {groups.map((group) => (
+              <div key={group[0].id}>
+                {group.map((message, index) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    showAvatar={index === 0}
+                  />
+                ))}
+                <div
+                  className={
+                    group[0].role === "user" ? "mt-1 pr-2 text-right" : "mt-1 pl-11"
+                  }
+                >
+                  <span className="text-[11px] text-muted-foreground">
+                    {group[0].timestamp}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {isTyping && <TypingIndicator />}
           </div>
         )}
       </div>
-
-      <ChatInput onSend={sendMessage} disabled={isTyping} />
+      <ChatInput
+        value={inputValue}
+        onChange={onInputChange}
+        onSend={onSend}
+        disabled={isTyping}
+        focusSignal={composerFocusSignal}
+      />
     </div>
   );
 }

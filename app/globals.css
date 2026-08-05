@@ -1,29 +1,159 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #f7f3ee;
-  --foreground: #2b2825;
+  color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #0d9488;
+
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
   --bubble-user: #0f766e;
-  --bubble-user-text: #ffffff;
-  --bubble-bot: #ffffff;
-  --bubble-crisis: #7f1d1d;
-  --bubble-crisis-text: #fef2f2;
+  --bubble-user-foreground: #ffffff;
+  --bubble-crisis: #991b1b;
+  --bubble-crisis-foreground: #fef2f2;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+
+  --card: #101827;
+  --card-foreground: #e2e8f0;
+
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+
+  --border: #1e293b;
+  --input: #334155;
+  --ring: #2dd4bf;
+
+  --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
+
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+
+  --accent: #1e293b;
+  --accent-foreground: #e2e8f0;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #fef2f2;
+
+  --bubble-user: #14b8a6;
+  --bubble-user-foreground: #042f2e;
+  --bubble-crisis: #b91c1c;
+  --bubble-crisis-foreground: #fef2f2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: #0f766e;
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-bubble-user: var(--bubble-user);
-  --color-bubble-user-text: var(--bubble-user-text);
-  --color-bubble-bot: var(--bubble-bot);
+  --color-bubble-user-foreground: var(--bubble-user-foreground);
   --color-bubble-crisis: var(--bubble-crisis);
-  --color-bubble-crisis-text: var(--bubble-crisis-text);
+  --color-bubble-crisis-foreground: var(--bubble-crisis-foreground);
   --font-sans: var(--font-geist-sans);
+}
+
+@theme {
+  --animate-message-in: message-in 0.3s ease-out;
+  --animate-fade-in: fade-in 0.4s ease-out both;
+
+  @keyframes message-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, sans-serif;
+}
+
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 8px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
