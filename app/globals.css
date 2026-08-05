@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f3ee;
+  --foreground: #2b2825;
+  --bubble-user: #0f766e;
+  --bubble-user-text: #ffffff;
+  --bubble-bot: #ffffff;
+  --bubble-crisis: #7f1d1d;
+  --bubble-crisis-text: #fef2f2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: #0f766e;
+  --color-bubble-user: var(--bubble-user);
+  --color-bubble-user-text: var(--bubble-user-text);
+  --color-bubble-bot: var(--bubble-bot);
+  --color-bubble-crisis: var(--bubble-crisis);
+  --color-bubble-crisis-text: var(--bubble-crisis-text);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, sans-serif;
+}
