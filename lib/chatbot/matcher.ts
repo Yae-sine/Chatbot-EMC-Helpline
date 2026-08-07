@@ -21,7 +21,10 @@ function countTermMatches(terms: string[], normalizedText: string): number {
   return count;
 }
 
-export function matchEntry(rawMessage: string, entries: QAEntry[]): MatchResult {
+export function matchEntry(
+  rawMessage: string,
+  entries: QAEntry[],
+): MatchResult {
   const text = normalize(rawMessage);
   let best: QAEntry | undefined;
   let bestScore = 0;
@@ -39,7 +42,8 @@ export function matchEntry(rawMessage: string, entries: QAEntry[]): MatchResult 
         score > 0 &&
         best !== undefined &&
         (keywordMatches > bestKeywords ||
-          (keywordMatches === bestKeywords && entry.profiles.length < best.profiles.length)));
+          (keywordMatches === bestKeywords &&
+            entry.profiles.length < best.profiles.length)));
 
     if (isBetter) {
       best = entry;
