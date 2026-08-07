@@ -29,16 +29,4 @@ Always run `lint`, `typecheck` and `test` before considering a task done.
   matching (`lib/chatbot/matcher.ts`). See AGENTS.md §6 — non-negotiable.
 - The Q&A knowledge base is static, typed data in `data/qa-database.ts`.
 
-## ⚠️ Pending validation — crisis copy
 
-The crisis messages in `data/crisis-protocol.ts` are **working proposals
-pending sign-off from the encadrante (Mme Belaous)**. Do not change their
-wording without her validation, and do not deploy anything resembling a real
-product before she approves them. (See AGENTS.md §6.)
-
-## Content status
-
-`data/qa-database.ts` currently holds 3 **placeholder** entries only. The
-real validated knowledge base (25 scenarios) must come from
-`docs/qa-source.md`, converted from `Bases_questions_réponses-Version2.pdf`.
-Do not invent Q&A content.
