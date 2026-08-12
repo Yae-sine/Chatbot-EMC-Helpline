@@ -1,5 +1,5 @@
-import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { Logo } from "@/components/ui/Logo";
 import { SuggestionCards } from "./SuggestionCards";
 import { t } from "@/lib/i18n";
 
@@ -12,9 +12,12 @@ export function WelcomeScreen({ onSelectPrompt }: WelcomeScreenProps) {
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-12 sm:px-6">
       <div className="w-full max-w-3xl animate-fade-in">
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
-            <ShieldCheck className="size-7" />
-          </div>
+          <Logo
+            src="/EMC_Helpline.png"
+            alt="EMC Helpline"
+            sizes="6rem"
+            className="mx-auto mb-3 size-24 rounded-2xl border border-border bg-card p-2 shadow-sm"
+          />
           <Badge variant="outline" className="mb-4 border-primary/30 bg-primary/5 text-foreground">
             {t("fr", "welcomeBadge")}
           </Badge>

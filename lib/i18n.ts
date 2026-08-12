@@ -11,7 +11,7 @@ const fr = {
   closeMenu: "Fermer le menu latéral",
   themeToggle: "Basculer entre les thèmes clair et sombre",
   inputPlaceholder: "Écrivez votre message…",
-  inputHint: "Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne",
+  inputHint: "Entrée pour envoyer",
   sendButton: "Envoyer le message",
   typing: "L'assistant écrit…",
   crisisNotice: "Réponse d'urgence — ressources à contacter",

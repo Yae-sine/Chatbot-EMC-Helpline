@@ -2,6 +2,7 @@
 
 import { ShieldAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { TOPICS } from "@/lib/suggestions";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
@@ -80,9 +81,17 @@ export function Sidebar({ open, onClose, onSelectPrompt }: SidebarProps) {
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("fr", "sidebarVersion")}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("fr", "sidebarVersionValue")}
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Logo
+                src="/EMC.webp"
+                alt="Espace Maroc Cyberconfiance"
+                sizes="8rem"
+                className="h-8 w-20"
+              />
+              <p className="text-sm text-muted-foreground">
+                {t("fr", "sidebarVersionValue")}
+              </p>
+            </div>
           </section>
         </div>
       </aside>

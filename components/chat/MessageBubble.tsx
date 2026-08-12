@@ -1,5 +1,6 @@
-import { ShieldCheck, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { Logo } from "@/components/ui/Logo";
 import { LinkifiedText } from "@/components/chat/LinkifiedText";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
@@ -26,7 +27,7 @@ export function MessageBubble({ message, showAvatar = true }: MessageBubbleProps
   return (
     <div className="flex animate-message-in items-start gap-3">
       <Avatar className={cn("size-8 shrink-0", !showAvatar && "invisible")}>
-        <ShieldCheck className="size-4" />
+        <Logo src="/EMC_Helpline.png" alt="EMC Helpline" sizes="2rem" className="size-8 p-0.5" />
       </Avatar>
       <div
         className={cn(

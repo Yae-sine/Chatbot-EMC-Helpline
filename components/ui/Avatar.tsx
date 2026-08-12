@@ -9,7 +9,7 @@ export function Avatar({
     <div
       aria-hidden="true"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary",
+        "flex shrink-0 items-center justify-center rounded-lg border border-border bg-card",
         className,
       )}
       {...props}

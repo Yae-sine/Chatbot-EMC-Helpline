@@ -1,8 +1,9 @@
 "use client";
 
-import { Menu, RotateCcw, ShieldCheck } from "lucide-react";
+import { Menu, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { t } from "@/lib/i18n";
 
@@ -26,9 +27,12 @@ export function Header({ onNewChat, onOpenSidebar }: HeaderProps) {
         </Button>
 
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <ShieldCheck className="size-5" />
-          </div>
+          <Logo
+            src="/EMC_Helpline.png"
+            alt="EMC Helpline"
+            sizes="2.5rem"
+            className="size-10 rounded-lg border border-border bg-card p-1.5 shadow-sm"
+          />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold tracking-tight">
               {t("fr", "chatTitle")}
