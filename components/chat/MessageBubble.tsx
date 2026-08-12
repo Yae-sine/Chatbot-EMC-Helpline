@@ -1,5 +1,6 @@
 import { ShieldCheck, TriangleAlert } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { LinkifiedText } from "@/components/chat/LinkifiedText";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import type { ChatMessage } from "@/types/chat";
@@ -16,7 +17,7 @@ export function MessageBubble({ message, showAvatar = true }: MessageBubbleProps
     return (
       <div className="flex animate-message-in justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-bubble-user px-4 py-3 text-sm leading-relaxed text-bubble-user-foreground shadow-sm">
-          {message.text}
+          <LinkifiedText text={message.text} />
         </div>
       </div>
     );
@@ -41,7 +42,7 @@ export function MessageBubble({ message, showAvatar = true }: MessageBubbleProps
             {t("fr", "crisisNotice")}
           </p>
         )}
-        {message.text}
+        <LinkifiedText text={message.text} />
       </div>
     </div>
   );
