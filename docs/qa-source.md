@@ -96,7 +96,7 @@ psychologique.
 **Parcours:** Technique
 
 **Formulations exemples:**
-- « Comment je fais pour signaler une photo humiliante postée sur Instagram ? »
+- « Comment je fais pour signaler une photo humiliante postée sur les réseaux sociaux ? »
 - « Mon amie a reçu des messages horribles, comment on signale ça ? »
 - « Je veux faire supprimer un contenu qui me concerne, c'est possible ? »
 
@@ -574,3 +574,65 @@ DuckDuckGo, Qwant Junior et YouTube Kids, qui filtrent les résultats et
 limitent les publicités inadaptées.
 
 **Mots-clés déclencheurs:** contrôle parental, application surveillance, moteur de recherche enfant, Kaspersky Safe Kids, Qustodio, YouTube Kids
+
+---
+
+## Annex — Additional validated scenarios (Ressources Chatbot.docx.pdf)
+
+In addition to the 25 Version-2 scenarios above, the chatbot embeds scenarios
+extracted **verbatim** from the companion document `Ressources Chatbot.docx.pdf`
+(sections II and IV of "Informations"). These live in `data/qa-database.ts`;
+answers and the leading keywords are copied from that PDF — nothing invented.
+
+### 4.10 — Comment déposer une plainte auprès du parquet ?
+
+**Profils concernés:** Victime, parent, témoin, professionnel
+**Parcours:** Juridique
+
+**Réponse (verbatim §II "Comment et où porter plainte ?", A):**
+Déposez une plainte auprès du parquet du tribunal de première instance, ou
+déposez une plainte en ligne via la plateforme des plaintes électroniques de la
+Présidence du Ministère Public, qui permet de signaler directement les
+infractions : https://plaintes.pmp.ma/
+
+### 4.11 — Comment porter plainte auprès de la Police (E-Blagh) ?
+
+**Réponse (verbatim §II, B — Forces de l'ordre / Police):**
+Vous pouvez porter plainte auprès des services de la Police sur place ou en
+ligne, sur la plateforme « E-Blagh » de la Direction Générale de la Sûreté
+Nationale, dédiée à la lutte contre la cybercriminalité : https://www.e-blagh.ma/
+
+### 4.12 — Comment porter plainte auprès de la Gendarmerie Royale ?
+
+**Réponse (verbatim §II, B — Gendarmerie Royale):**
+Vous pouvez porter plainte auprès des services de la Gendarmerie Royale sur
+place, notamment lorsqu'il s'agit du milieu rural.
+
+### 4.13 — Comment joindre le centre d'aide du Ministère de la Justice ?
+
+**Réponse (verbatim §II, C — Ministère de la Justice):**
+Le centre d'aide et d'orientation du Ministère de la Justice est disponible au
+numéro +212537266600.
+
+### 4.14 — Où s'adresser aux cellules de prise en charge des femmes et enfants victimes de violence ?
+
+**Réponse (verbatim §II, D — Cellules de prise en charge):**
+Vous pouvez vous adresser aux cellules de prise en charge des femmes et enfants
+victimes de violence au sein des tribunaux de première instance et des cours
+d'appel, selon le cas.
+
+### 6.19–6.26 — Facettes du risque enfant (verbatim §IV "types de cyberviolence que votre enfant pourrait rencontrer")
+
+The list "Cela inclut" from §IV is implemented as eight individual entries:
+
+- 6.19 sexting — échange de contenus à caractère sexuel
+- 6.20 chantage à la webcam — variante de la sextorsion
+- 6.21 diffusion de rumeurs ou de fausses informations — dénigrement
+- 6.22 piratage de compte / usurpation d'identité digitale
+- 6.23 création d'un groupe, d'une page ou d'un sujet de discussion anti-personne
+- 6.24 exposition à des contenus inappropriés
+- 6.25 incitation au racisme, à la haine et à la radicalisation (punie par la loi)
+- 6.26 fraude et escroquerie (utilisation des données personnelles à des fins criminelles)
+
+Each entry pairs the verbatim definition with the validated reporting links
+(evigilance.ma / cyberconfiance.ma/signalment, IWF for child-abuse material).

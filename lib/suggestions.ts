@@ -32,7 +32,7 @@ export const SUGGESTIONS: Suggestion[] = [
     icon: ShieldCheck,
     titleKey: "suggestionReportTitle",
     descriptionKey: "suggestionReportDesc",
-    prompt: "Comment je fais pour signaler une photo humiliante postée sur Instagram ?",
+    prompt: "Comment je fais pour signaler une photo humiliante postée sur les réseaux sociaux ?",
   },
   {
     key: "plainte",
@@ -47,6 +47,13 @@ export const SUGGESTIONS: Suggestion[] = [
     titleKey: "suggestionEnfantTitle",
     descriptionKey: "suggestionEnfantDesc",
     prompt: "Mon enfant m'a montré des messages inquiétants, comment réagir sans le braquer ?",
+  },
+  {
+    key: "parcours",
+    icon: LifeBuoy,
+    titleKey: "suggestionParcoursTitle",
+    descriptionKey: "suggestionParcoursDesc",
+    prompt: "je veux être guidé pour signaler un contenu",
   },
 ];
 

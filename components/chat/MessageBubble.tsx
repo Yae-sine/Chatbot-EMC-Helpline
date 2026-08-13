@@ -2,6 +2,7 @@ import { TriangleAlert } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 import { LinkifiedText } from "@/components/chat/LinkifiedText";
+import { BreathingPulse } from "@/components/chat/BreathingPulse";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import type { ChatMessage } from "@/types/chat";
@@ -43,6 +44,7 @@ export function MessageBubble({ message, showAvatar = true }: MessageBubbleProps
             {t("fr", "crisisNotice")}
           </p>
         )}
+        {message.flowId === "breathing-4-2-6" && <BreathingPulse />}
         <LinkifiedText text={message.text} />
       </div>
     </div>

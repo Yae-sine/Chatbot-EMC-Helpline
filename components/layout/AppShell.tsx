@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Footer } from "@/components/layout/Footer";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { t } from "@/lib/i18n";
+import { SUGGESTIONS } from "@/lib/suggestions";
 import type { ChatMessage } from "@/types/chat";
 
 function currentTime(): string {
@@ -15,12 +16,24 @@ function currentTime(): string {
   });
 }
 
+// Greeting pushed at the start of every conversation: the guide requires the
+// chatbot to state its limits (automated assistant) and the emergency numbers
+// explicitly from the very first message.
+const GREETING_MESSAGE: ChatMessage = {
+  id: "greeting-initial",
+  role: "assistant",
+  text: t("fr", "greeting"),
+  options: SUGGESTIONS.map((suggestion) => suggestion.prompt),
+  timestamp: currentTime(),
+};
+
 export function AppShell() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [GREETING_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [composerFocusSignal, setComposerFocusSignal] = useState(0);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
@@ -36,9 +49,14 @@ export function AppShell() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, sessionId }),
       });
-      const data = (await res.json()) as { text: string; isCrisis: boolean };
+      const data = (await res.json()) as {
+        text: string;
+        isCrisis: boolean;
+        options?: string[];
+        flowId?: string;
+      };
       setMessages((prev) => [
         ...prev,
         {
@@ -46,6 +64,8 @@ export function AppShell() {
           role: "assistant",
           text: data.text,
           isCrisis: data.isCrisis,
+          options: data.options,
+          flowId: data.flowId,
           timestamp: currentTime(),
         },
       ]);
@@ -71,8 +91,9 @@ export function AppShell() {
   };
 
   const newChat = () => {
-    setMessages([]);
+    setMessages([GREETING_MESSAGE]);
     setInputValue("");
+    setSessionId(crypto.randomUUID());
   };
 
   return (
@@ -91,7 +112,6 @@ export function AppShell() {
             inputValue={inputValue}
             onInputChange={setInputValue}
             onSend={sendMessage}
-            onSelectPrompt={selectPrompt}
             composerFocusSignal={composerFocusSignal}
           />
         </main>

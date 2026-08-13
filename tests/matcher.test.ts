@@ -3,10 +3,10 @@ import { QA_DATABASE } from "@/data/qa-database";
 import { matchEntry } from "@/lib/chatbot/matcher";
 
 describe("matching engine (AGENTS.md §8)", () => {
-  it("contains exactly 25 entries with unique ids and no placeholders", () => {
-    expect(QA_DATABASE).toHaveLength(25);
+  it("contains exactly 73 entries with unique ids and no placeholders", () => {
+    expect(QA_DATABASE).toHaveLength(73);
     const ids = QA_DATABASE.map((entry) => entry.id);
-    expect(new Set(ids).size).toBe(25);
+    expect(new Set(ids).size).toBe(73);
     for (const entry of QA_DATABASE) {
       expect(entry.id).toMatch(/^\d+\.\d+$/);
       expect(entry.answer.length).toBeGreaterThan(0);

@@ -19,7 +19,9 @@ export type Category =
   | "juridique"
   | "psychologique"
   | "informatif"
-  | "protection-prevention";
+  | "protection-prevention"
+  | "contacts-ressources"
+  | "cyberviolence-formes";
 
 export interface QAEntry {
   id: string;

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
-import { WelcomeScreen } from "./WelcomeScreen";
+import { QuickReplies } from "./QuickReplies";
 import type { ChatMessage } from "@/types/chat";
 
 interface ChatWindowProps {
@@ -13,7 +13,6 @@ interface ChatWindowProps {
   inputValue: string;
   onInputChange: (value: string) => void;
   onSend: (text: string) => void;
-  onSelectPrompt: (prompt: string) => void;
   composerFocusSignal: number;
 }
 
@@ -36,11 +35,15 @@ export function ChatWindow({
   inputValue,
   onInputChange,
   onSend,
-  onSelectPrompt,
   composerFocusSignal,
 }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const groups = useMemo(() => buildGroups(messages), [messages]);
+  const last = messages[messages.length - 1];
+  const activeOptions =
+    last && last.role === "assistant" && last.options && last.options.length > 0
+      ? last.options
+      : [];
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -50,10 +53,7 @@ export function ChatWindow({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-y-auto scroll-smooth">
-        {messages.length === 0 ? (
-          <WelcomeScreen onSelectPrompt={onSelectPrompt} />
-        ) : (
-          <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6 sm:px-6">
+        <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6 sm:px-6">
             {groups.map((group) => (
               <div key={group[0].id}>
                 {group.map((message, index) => (
@@ -76,8 +76,12 @@ export function ChatWindow({
             ))}
             {isTyping && <TypingIndicator />}
           </div>
-        )}
       </div>
+      {activeOptions.length > 0 && (
+        <div className="pb-3">
+          <QuickReplies options={activeOptions} onSelect={onSend} />
+        </div>
+      )}
       <ChatInput
         value={inputValue}
         onChange={onInputChange}
