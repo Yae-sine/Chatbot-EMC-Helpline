@@ -3,8 +3,8 @@ import { QA_DATABASE } from "@/data/qa-database";
 import { matchEntry } from "@/lib/chatbot/matcher";
 
 describe("matching engine (AGENTS.md §8)", () => {
-  it("contains exactly 73 entries with unique ids and no placeholders", () => {
-    expect(QA_DATABASE).toHaveLength(73);
+  it("contains exactly 74 entries with unique ids and no placeholders", () => {
+    expect(QA_DATABASE).toHaveLength(74);
     const ids = QA_DATABASE.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(73);
     for (const entry of QA_DATABASE) {

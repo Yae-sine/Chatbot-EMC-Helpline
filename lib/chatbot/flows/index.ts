@@ -6,6 +6,7 @@ import { technicalFlow } from "./technical";
 import { juridiqueFlow } from "./juridique";
 import { informatifFlow } from "./informatif";
 import { parcoursPsychologiqueFlow } from "./psychologique";
+import { guidedFlow } from "./guided";
 
 function runFlow(state: FlowState, rawMessage: string): FlowOutput {
   switch (state.flowId) {
@@ -23,6 +24,8 @@ function runFlow(state: FlowState, rawMessage: string): FlowOutput {
       return informatifFlow(state, rawMessage);
     case "parcours-psychologique":
       return parcoursPsychologiqueFlow(state, rawMessage);
+    case "guided-qualification":
+      return guidedFlow(state, rawMessage);
     default:
       // Unreachable (FlowId is closed); defensive fallback keeps the API safe.
       return { text: "" };

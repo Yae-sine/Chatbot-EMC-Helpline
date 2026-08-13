@@ -55,6 +55,7 @@ const INTENTS: Intent[] = [
     flowId: "parcours-psychologique",
     triggers: [
       "parcours psychologique",
+      "soutien psychologique",
       "démarche psychologique",
       "je veux du soutien",
       "je veux de l'aide psychologique",
@@ -101,6 +102,15 @@ const INTENTS: Intent[] = [
       "refaire l'exercice d'ancrage",
       "exercice des cinq sens",
       "ancrage sensoriel",
+    ],
+  },
+  {
+    flowId: "guided-qualification",
+    triggers: [
+      "aidez-moi à comprendre ma situation",
+      "je ne sais pas quoi demander",
+      "oriente-moi",
+      "guidage",
     ],
   },
 ];

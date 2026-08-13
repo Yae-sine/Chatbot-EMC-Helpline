@@ -5,57 +5,9 @@ import {
   LifeBuoy,
   Scale,
   ShieldCheck,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { TranslationKey } from "@/lib/i18n";
-
-export interface Suggestion {
-  key: string;
-  icon: LucideIcon;
-  titleKey: TranslationKey;
-  descriptionKey: TranslationKey;
-  prompt: string;
-}
-
-// Prompts are validated sample formulations from docs/qa-source.md.
-export const SUGGESTIONS: Suggestion[] = [
-  {
-    key: "emc",
-    icon: Info,
-    titleKey: "suggestionEmcTitle",
-    descriptionKey: "suggestionEmcDesc",
-    prompt: "C'est quoi l'EMC ?",
-  },
-  {
-    key: "report",
-    icon: ShieldCheck,
-    titleKey: "suggestionReportTitle",
-    descriptionKey: "suggestionReportDesc",
-    prompt: "Comment je fais pour signaler une photo humiliante postée sur les réseaux sociaux ?",
-  },
-  {
-    key: "plainte",
-    icon: Scale,
-    titleKey: "suggestionPlainteTitle",
-    descriptionKey: "suggestionPlainteDesc",
-    prompt: "Il faut aller où exactement pour déposer une plainte ?",
-  },
-  {
-    key: "enfant",
-    icon: Users,
-    titleKey: "suggestionEnfantTitle",
-    descriptionKey: "suggestionEnfantDesc",
-    prompt: "Mon enfant m'a montré des messages inquiétants, comment réagir sans le braquer ?",
-  },
-  {
-    key: "parcours",
-    icon: LifeBuoy,
-    titleKey: "suggestionParcoursTitle",
-    descriptionKey: "suggestionParcoursDesc",
-    prompt: "je veux être guidé pour signaler un contenu",
-  },
-];
 
 export interface Topic {
   key: string;

@@ -3,6 +3,7 @@ export type FlowId =
   | "parcours-juridique"
   | "parcours-informatif"
   | "parcours-psychologique"
+  | "guided-qualification"
   | "emotion-weather"
   | "grounding-5-4-3-2-1"
   | "breathing-4-2-6";
@@ -26,4 +27,8 @@ export interface FlowOutput {
   // Switch to another flow (used by the emotion-weather flow to launch
   // the breathing / grounding exercise and by parcours cross-links).
   switchTo?: FlowId;
+  // Set when the current turn should leave the flow and be handled by the
+  // general matcher instead (used by the guided tree: free text mid-tree
+  // abandons the tree and gets a normal Q&A answer).
+  fallbackToMatcher?: boolean;
 }

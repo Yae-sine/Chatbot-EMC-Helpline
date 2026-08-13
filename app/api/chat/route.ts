@@ -70,6 +70,16 @@ export async function POST(request: Request) {
     const state = getFlowState(sessionId);
     if (state) {
       const { output, nextState } = handleFlow(state, message);
+      // Free text mid-guided-tree abandons the tree: clear the flow and let
+      // the general matcher answer this message normally.
+      if (output.fallbackToMatcher) {
+        setFlowState(sessionId, null);
+        const match = matchEntry(message, QA_DATABASE);
+        if (match.matched && match.entry) {
+          return NextResponse.json({ text: match.entry.answer, isCrisis: false });
+        }
+        return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false });
+      }
       setFlowState(sessionId, nextState);
       return NextResponse.json({
         text: output.text,

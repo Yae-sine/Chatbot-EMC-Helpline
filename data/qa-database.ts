@@ -39,7 +39,6 @@ export const QA_DATABASE: QAEntry[] = [
     keywords: [
       "EMC",
       "Espace Maroc Cyberconfiance",
-      "CMRPI",
       "qui êtes-vous",
       "c'est quoi l'EMC",
       "présentation",
@@ -49,7 +48,6 @@ export const QA_DATABASE: QAEntry[] = [
       "chatbot",
       "à qui s'adresse",
       "qu'est-ce que l'EMC",
-      "qu'est-ce que le CMRPI",
     ],
     synonyms: [
       "présentez-vous",
@@ -150,6 +148,37 @@ export const QA_DATABASE: QAEntry[] = [
       "ce que fait l'EMC sur le terrain",
     ],
     tags: ["emc", "mission", "événements", "sensibilisation"],
+  },
+  {
+    id : "2.4",
+    category: "presentation-emc",
+    question: "Qu'est-ce que le CMRPI (Centre Marocain de Recherche Polytechnique et d'Innovation) ?",
+    profiles: [
+      "victime-mineure",
+      "victime-majeure",
+      "parent-tuteur",
+      "enseignant-educateur",
+      "temoin",
+      "professionnel",
+    ],
+    parcours: [],
+    sampleFormulations: [
+      "C'est quoi le CMRPI ?",
+    ],
+    answer:
+    "Le Centre Marocain de Recherches Polytechniques et d’Innovation (CMRPI) est une association scientifique marocaine à but non lucratif, fondée en 2012, qui œuvre dans les domaines de la recherche, du développement et de l’innovation. Il rassemble chercheurs, universitaires, ingénieurs, experts et étudiants afin de favoriser la collaboration scientifique, le partage des connaissances et le transfert des résultats de la recherche vers le monde socio-économique. Le CMRPI s’intéresse particulièrement à la recherche appliquée et aux hautes technologies, tout en facilitant les échanges entre ses membres et avec les organismes scientifiques, industriels et institutionnels au Maroc et à l’étranger.",
+    keywords: [
+      "CMRPI",
+      "Centre Marocain de Recherches Polytechniques et d'Innovation",
+      "qu'est-ce que le CMRPI",
+    ],
+    synonyms: [
+      "qu'est-ce que le CMRPI",
+      "présentation du CMRPI",
+      "à quoi sert le CMRPI",
+      "mission du CMRPI",
+    ],
+    tags: ["cmrpi"],
   },
   {
     id: "3.1",

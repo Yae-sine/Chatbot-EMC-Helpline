@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Footer } from "@/components/layout/Footer";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { t } from "@/lib/i18n";
-import { SUGGESTIONS } from "@/lib/suggestions";
 import type { ChatMessage } from "@/types/chat";
 
 function currentTime(): string {
@@ -23,7 +22,8 @@ const GREETING_MESSAGE: ChatMessage = {
   id: "greeting-initial",
   role: "assistant",
   text: t("fr", "greeting"),
-  options: SUGGESTIONS.map((suggestion) => suggestion.prompt),
+  // Launch trigger for the guided qualification tree (see lib/chatbot/flows/guided.ts).
+  options: [t("fr", "guidedStartPrompt")],
   timestamp: currentTime(),
 };
 
