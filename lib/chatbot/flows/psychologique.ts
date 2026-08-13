@@ -7,7 +7,7 @@ import { askAgain, matchOption, qaAnswer } from "./helpers";
 // non-diagnostic only (the guide explicitly frames the module as recognition,
 // normalization and action — never a diagnostic tool).
 const MENU_OPTIONS = [
-  "Météo des émotions (je veux un exercice)",
+  "Aide-moi à gérer mes émotions",
   "Les conséquences sur la santé mentale",
   "Les signaux d'alerte chez un enfant",
   "Les conséquences physiques, sociales et durables",
@@ -45,7 +45,7 @@ export function parcoursPsychologiqueFlow(state: FlowState, rawMessage: string):
       if (index < 0) return askAgain(state);
       const topic = MENU_OPTIONS[index];
       if (topic === "Terminer") return closing();
-      if (topic === "Météo des émotions (je veux un exercice)") {
+      if (topic === "Aide-moi à gérer mes émotions") {
         return { text: "", switchTo: "emotion-weather" };
       }
       if (topic === "PHQ-4 et DASS-21 : explorer mon état") {
