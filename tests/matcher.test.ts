@@ -6,7 +6,7 @@ describe("matching engine (AGENTS.md §8)", () => {
   it("contains exactly 74 entries with unique ids and no placeholders", () => {
     expect(QA_DATABASE).toHaveLength(74);
     const ids = QA_DATABASE.map((entry) => entry.id);
-    expect(new Set(ids).size).toBe(73);
+    expect(new Set(ids).size).toBe(74);
     for (const entry of QA_DATABASE) {
       expect(entry.id).toMatch(/^\d+\.\d+$/);
       expect(entry.answer.length).toBeGreaterThan(0);

@@ -209,7 +209,7 @@ describe("handleFlow orchestration", () => {
 
   it("psychologique parcours hops into the emotion-weather module", () => {
     const s1 = handleFlow(start("parcours-psychologique"), "");
-    const s2 = handleFlow(s1.nextState as FlowState, "Météo des émotions (je veux un exercice)");
+    const s2 = handleFlow(s1.nextState as FlowState, "Aide-moi à gérer mes émotions");
     expect(s2.nextState?.flowId).toBe("emotion-weather");
     expect(s2.nextState?.step).toBe("intensity");
   });
