@@ -1,8 +1,7 @@
 import type { CrisisCase } from "@/types/qa";
 
-// TODO: confirm final wording with encadrante (Mme Belaous) before any real deployment.
-// These messages are working proposals marked in the source knowledge base as pending her
-// sign-off (see AGENTS.md §6). Do not change the wording without her validation.
+// Wording validated and signed off by the encadrante (Mme Belaous) — do not
+// change it without her re-validation (see AGENTS.md §6).
 //
 // Keyword-style convention (mirrors qa-database.ts): the leading keywords are the validated
 // triggers from AGENTS.md §6 / Ressources Chatbot.docx.pdf (critical safety protocol); the

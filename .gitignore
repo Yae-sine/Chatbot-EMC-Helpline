@@ -40,6 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-AGENTS.md
-PROJECT_CONTEXT.md
-PROGRESS.md
+
+.opencode/
