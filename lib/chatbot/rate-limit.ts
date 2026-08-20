@@ -1,10 +1,20 @@
-// LLM rate limiter (PLANLLM Phase 3/5): two in-memory sliding buckets
-// (per-minute, per-day) per key. Not persisted; evicts on access. Used only
-// to gate the LLM path — a denied request gets today's normal fallback
-// (never an error, never a 429).
+// LLM rate limiter (PLANLLM Phase 3/5): a per-minute and a per-day counter
+// per key. Not persisted; stale windows are dropped on access and the maps
+// are swept back under MAX_KEYS so a long-lived process cannot grow without
+// bound. Used only to gate the LLM path — a denied request gets today's
+// normal fallback (never an error, never a 429).
 
 export interface RateLimiter {
   allow(key: string, now?: number): boolean;
+}
+
+/** Distinct keys tracked per window map before a sweep runs. */
+const MAX_KEYS = 1000;
+
+interface Window {
+  /** Bucket index this count belongs to; a different index means "expired". */
+  bucket: number;
+  count: number;
 }
 
 function minuteBucketKey(now: number): number {
@@ -15,21 +25,49 @@ function dayBucketKey(now: number): number {
   return Math.floor(now / 86_400_000);
 }
 
+function countIn(map: Map<string, Window>, key: string, bucket: number): number {
+  const window = map.get(key);
+  if (window === undefined) return 0;
+  if (window.bucket !== bucket) {
+    map.delete(key); // the window rolled over: the old count is dead
+    return 0;
+  }
+  return window.count;
+}
+
+// Bounded memory: drop every key whose window has rolled over, then, if the
+// map is still full of live windows, drop the oldest-inserted keys. Losing a
+// live key only resets that client's quota early — an unbounded map would
+// take the whole process down.
+function sweep(map: Map<string, Window>, bucket: number): void {
+  if (map.size <= MAX_KEYS) return;
+  for (const [key, window] of map) {
+    if (window.bucket !== bucket) map.delete(key);
+  }
+  while (map.size > MAX_KEYS) {
+    const oldest = map.keys().next().value;
+    if (oldest === undefined) break;
+    map.delete(oldest);
+  }
+}
+
 export function createRateLimiter(opts: { perMinute: number; perDay: number }): RateLimiter {
-  const perMinute = new Map<string, number>(); // key -> minute bucket
-  const perDay = new Map<string, number>(); // key -> day bucket
+  const perMinute = new Map<string, Window>();
+  const perDay = new Map<string, Window>();
 
   return {
     allow(key: string, now: number = Date.now()): boolean {
-      const minuteKey = `${key}:${minuteBucketKey(now)}`;
-      const dayKey = `${key}:${dayBucketKey(now)}`;
+      const minuteBucket = minuteBucketKey(now);
+      const dayBucket = dayBucketKey(now);
 
-      const minuteCount = perMinute.get(minuteKey) ?? 0;
-      const dayCount = perDay.get(dayKey) ?? 0;
+      const minuteCount = countIn(perMinute, key, minuteBucket);
+      const dayCount = countIn(perDay, key, dayBucket);
       if (minuteCount >= opts.perMinute || dayCount >= opts.perDay) return false;
 
-      perMinute.set(minuteKey, minuteCount + 1);
-      perDay.set(dayKey, dayCount + 1);
+      perMinute.set(key, { bucket: minuteBucket, count: minuteCount + 1 });
+      perDay.set(key, { bucket: dayBucket, count: dayCount + 1 });
+      sweep(perMinute, minuteBucket);
+      sweep(perDay, dayBucket);
       return true;
     },
   };

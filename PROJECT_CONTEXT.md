@@ -240,12 +240,17 @@ content.
   breaker (3 failures / 60 s, half-open re-probe).
 - **Config** (`lib/config/env.ts`): typed knobs (`LLM_PROVIDER`, keys, models,
   timeouts, caps, rate limits, `ENABLE_META_LOGGING`, `ENABLE_RESPONSE_CACHE`);
-  `.env.example` documents every variable; without any key `llmProvider` is
-  null and the hybrid path is off (today's behavior).
+  `.env.example` documents every variable; without any key (or with an
+  OpenRouter key but no `OPENROUTER_MODEL`) `llmProvider` is null and the
+  hybrid path is off (today's behavior). `LLM_PROVIDER` moves its provider to
+  the front of the chain; the others stay as fallbacks. `LLM_SMALLTALK=false`
+  suppresses generated free text — the router then serves validated copy only.
 - **The fallback** (`lib/chatbot/fallback.ts`): returns the `fallback` i18n string
   (invites rephrasing + lists the five `parcours` themes).
 - **Security & privacy:** per-client LLM rate gate (minute + day buckets,
-  `x-forwarded-for`-aware; denied = fallback, never a 429, no new copy);
+  bounded maps; the client identity is `x-real-ip`/`cf-connecting-ip`, else the
+  LAST `x-forwarded-for` hop — the leftmost entry is caller-supplied and
+  spoofable — else the session id; denied = fallback, never a 429, no new copy);
   metadata logs (`emc-meta`) carry mode/matchedId/latency only — never raw
   user messages (AGENTS.md §10); no persistence of conversations.
 
@@ -398,8 +403,9 @@ string, "isCrisis": boolean, "options"?: string[], "flowId"?: string,
 - Arabic strings are intentionally empty this phase (AGENTS.md §13).
 - Run `npm run lint`, `npm run typecheck`, and `npm run test` before finishing;
   never weaken `tsconfig.json` strictness.
-- `PROJECT_CONTEXT.md`, `PROGRESS.md`, and `AGENTS.md` are listed in
-  `.gitignore` (local project docs, not committed).
+- `AGENTS.md`, `PROJECT_CONTEXT.md`, `PROGRESS.md`, `PLANLLM.md` and
+  `CLAUDE.md` are committed project docs; only `.env*` (except `.env.example`)
+  and build artifacts are gitignored.
 
 ## 12. Known Issues
 

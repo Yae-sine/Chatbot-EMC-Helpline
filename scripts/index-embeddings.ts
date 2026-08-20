@@ -47,6 +47,17 @@ async function main(): Promise<void> {
   if (dimensions === 0) {
     throw new Error("embedding provider returned empty vectors");
   }
+  // Every row must match: one short/empty vector would be written to the
+  // artifact and score 0 for every query, with no error at runtime.
+  const malformed = rows
+    .map((row, index) => ({ id: row.id, length: vectors[index]?.length ?? 0 }))
+    .filter((row) => row.length !== dimensions);
+  if (malformed.length > 0) {
+    throw new Error(
+      `embedding dimension mismatch (expected ${dimensions}): ` +
+        malformed.map((row) => `${row.id}=${row.length}`).join(", "),
+    );
+  }
   const serialized = serializeEmbeddings(rows, vectors, GEMINI_EMBEDDING_MODEL, dimensions);
   writeFileSync(OUT_PATH, serialized, "utf8");
 

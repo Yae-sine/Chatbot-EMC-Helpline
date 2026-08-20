@@ -14,8 +14,8 @@ function testCfg(overrides: Partial<Config> = {}): Config {
   return {
     llmProvider: "gemini",
     geminiApiKey: "test-key",
-    geminiChatModel: "gemini-3.5-flash-lite",
-    groqChatModel: "llama-3.3-70b-versatile",
+    geminiChatModel: "gemini-3.1-flash-lite",
+    groqChatModel: "openai/gpt-oss-120b",
     llmTimeoutMs: 5000,
     llmMaxRetries: 1,
     llmSmalltalk: true,
@@ -38,7 +38,7 @@ function fakeProvider(payload: unknown, error?: Error): LLMProvider {
       return {
         text: JSON.stringify(payload),
         provider: "gemini",
-        model: "gemini-3.5-flash-lite",
+        model: "gemini-3.1-flash-lite",
       };
     },
     async embedTexts(): Promise<number[][]> {
@@ -136,6 +136,18 @@ describe("routeLLM (PLANLLM Phase 3)", () => {
     expect(outcome.text).toContain("2511");
   });
 
+  it("LLM_SMALLTALK=false suppresses generated free text entirely", async () => {
+    const outcome = await routeLLM({
+      rawMessage: "bonsoir",
+      context: null,
+      cfg: testCfg({ llmSmalltalk: false }),
+      providers: [fakeProvider({ route: "smalltalk", qaIds: [], flow: null, smalltalk: "Bonsoir ! Comment puis-je vous aider ?", confidence: 0.9 })],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("fallback");
+    expect(outcome.text).toContain("Je n'ai pas");
+  });
+
   it("serves safe smalltalk free text with mode llm", async () => {
     const outcome = await routeLLM({
       rawMessage: "bonsoir",
@@ -194,6 +206,19 @@ describe("routeLLM (PLANLLM Phase 3)", () => {
       retriever: retrieverWith([]),
     });
     expect(outcome.mode).toBe("fallback");
+  });
+
+  it("never counts the turn itself — the route handler owns turnCount", async () => {
+    // Counting here as well would burn the session cap twice as fast.
+    const context: SessionContext = { ...emptyContext(), turnCount: 7 };
+    const outcome = await routeLLM({
+      rawMessage: "Une ex a posté mes photos sans mon accord",
+      context,
+      cfg: testCfg(),
+      providers: [fakeProvider({ route: "qa", qaIds: ["3.4"], flow: null, smalltalk: null, confidence: 0.9 })],
+      retriever: retrieverWith([{ id: "3.4", question: "Q", keywords: [], score: 0.1 }] as RetrievalCandidate[]),
+    });
+    expect(outcome.contextDelta?.turnCount).toBe(7);
   });
 
   it("caps: a turn beyond the session cap falls back", async () => {
@@ -274,7 +299,7 @@ describe("routeLLM response cache (PLANLLM Phase 7)", () => {
         return {
           text: JSON.stringify({ route: "qa", qaIds: ["3.4"], flow: null, smalltalk: null, confidence: 0.9 }),
           provider: "gemini",
-          model: "gemini-3.5-flash-lite",
+          model: "gemini-3.1-flash-lite",
         };
       },
       async embedTexts(): Promise<number[][]> {

@@ -1,6 +1,7 @@
-// Small TTL cache with LRU eviction (PLANLLM Phase 7). Map-backed, expires
-// on read, refreshes recency on access, evicts the least-recently-used when
-// full. In-memory only — never persisted.
+// Small TTL cache with LRU eviction (PLANLLM Phase 7). Map-backed; an entry
+// expires ttlMs after it was stored (absolute, not sliding — a hot key must
+// never pin a stale routing decision), reads refresh only the LRU position,
+// and the least-recently-used entry is evicted when full. In-memory only.
 
 export interface TTLCache<K, V> {
   readonly size: number;
@@ -11,7 +12,7 @@ export interface TTLCache<K, V> {
 
 interface CacheEntry<V> {
   value: V;
-  lastAccess: number;
+  insertedAt: number;
 }
 
 export function createTTLCache<K, V>(maxSize = 96, ttlMs = 600_000): TTLCache<K, V> {
@@ -24,19 +25,18 @@ export function createTTLCache<K, V>(maxSize = 96, ttlMs = 600_000): TTLCache<K,
     get(key: K): V | undefined {
       const entry = entries.get(key);
       if (!entry) return undefined;
-      if (Date.now() - entry.lastAccess > ttlMs) {
+      if (Date.now() - entry.insertedAt > ttlMs) {
         entries.delete(key);
         return undefined;
       }
-      // Touch to refresh the LRU position.
+      // Touch to refresh the LRU position (insertion order = recency).
       entries.delete(key);
       entries.set(key, entry);
-      entry.lastAccess = Date.now();
       return entry.value;
     },
     set(key: K, value: V): void {
       if (entries.has(key)) entries.delete(key);
-      entries.set(key, { value, lastAccess: Date.now() });
+      entries.set(key, { value, insertedAt: Date.now() });
       while (entries.size > maxSize) {
         const oldest = entries.keys().next().value;
         if (oldest === undefined) break;

@@ -58,12 +58,18 @@ export function isEmbeddingsFile(value: unknown): value is EmbeddingsFile {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   if (typeof record.model !== "string" || !Array.isArray(record.entries)) return false;
+  const dimensions = typeof record.dimensions === "number" ? record.dimensions : null;
   for (const entry of record.entries) {
     if (typeof entry !== "object" || entry === null) return false;
     const row = entry as Record<string, unknown>;
     if (
       typeof row.id !== "string" ||
       !Array.isArray(row.vector) ||
+      // An empty vector, or one that disagrees with the declared dimension,
+      // can never score (cosine bails on a length mismatch): reject the file
+      // instead of leaving those entries silently retrieval-blind.
+      row.vector.length === 0 ||
+      (dimensions !== null && row.vector.length !== dimensions) ||
       row.vector.some((n) => typeof n !== "number")
     ) {
       return false;

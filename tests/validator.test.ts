@@ -42,6 +42,15 @@ describe("isGrounded", () => {
     expect(isGrounded("Contacter le 05 22 33 44 55.", VALIDATED)).toBe(false);
   });
 
+  it("rejects a slash-separated invented number (the format the KB uses)", () => {
+    expect(isGrounded("Composez le 0522/12/34/56 pour être aidé.", VALIDATED)).toBe(false);
+    expect(isGrounded("Appelez 05-22-33-44.", VALIDATED)).toBe(false);
+  });
+
+  it("accepts a slash-separated number occurring verbatim", () => {
+    expect(isGrounded("Le numéro est 0522/12/34/56.", ["Appelez le 0522/12/34/56."])).toBe(true);
+  });
+
   it("ignores bare short numbers that are not grouped phone tokens", () => {
     // "2511" alone is not a grouped phone pattern (no separator + group).
     expect(isGrounded("Le numéro vert est le 2511.", VALIDATED)).toBe(true);

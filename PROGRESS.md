@@ -1,8 +1,9 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state: `lint` and `typecheck` clean, `test` 187 passed (+ 2
-skipped live-only), `npm run eval` green (deterministic gate), `build` passing.
+Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 205
+passed (+ 2 skipped live-only), `npm run eval` green (deterministic gate),
+`build` passing, and the hybrid path verified live against the three providers.
 
 ## Current Milestone
 
@@ -18,6 +19,45 @@ session context, per-client rate limits, classifier-result caching and a
 golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### Hybrid-layer hardening + live verification (2026-08-20)
+- [x] **Review fixes (13)** on top of the phases 0–7 commit: turn counting
+      moved to the route only (`routeLLM` no longer double-counts, the
+      `SESSION_TURN_CAP` was effectively halved); `setContext` now enforces
+      `MAX_SESSIONS` through a single `writeEntry` path; rate-limiter windows
+      are bounded and swept (was one permanent Map entry per client per
+      minute); rate-limit identity is `x-real-ip`/`cf-connecting-ip` → last
+      `x-forwarded-for` hop → session id (leftmost hop is spoofable, and a
+      missing header used to collapse every visitor onto one bucket);
+      `LLM_SMALLTALK` is wired into the smalltalk branch (was a dead flag);
+      provider success/breaker reset happen only after the JSON validates, and
+      429 vs bad-JSON retries have separate budgets; classifier cache TTL is
+      absolute (a hot key could pin a stale decision forever); the
+      pending-clarify branch can no longer 500 on a stale QA id; phone-token
+      grounding covers the `0522/12/34/56` slash format the KB itself uses;
+      malformed embedding rows fail loudly instead of becoming zero vectors;
+      `LLM_PROVIDER` now actually orders the chain and an OpenRouter key with
+      no model no longer counts as "LLM enabled"; unused `Badge` import removed
+- [x] **Regression tests** for each fix: new `tests/session.test.ts`,
+      `tests/indexer.test.ts`; extended `router`, `hybrid-route`, `validator`,
+      `rate-limit`, `cache`, `llm-client` suites (187 → 205 passing). Three
+      tests that encoded the old behaviour (sliding cache TTL, `embedTexts`
+      returning `[]`, openrouter-without-model "enabled") were updated
+      deliberately
+- [x] **Classifier token budget** 300 → 768 (`lib/llm/classifier.ts`):
+      reasoning-capable providers spend 250–320 tokens before the JSON and
+      Groq rejects the truncated body with `400 json_validate_failed`
+- [x] **Provider config verified against the live APIs**: Gemini
+      `gemini-3.1-flash-lite` (~1–4 s; `gemini-3.5-flash-lite` answers
+      correctly but took 15–86 s on this key and refuses
+      `thinkingBudget: 0`), Groq `openai/gpt-oss-120b`
+      (`llama-3.3-70b-versatile` is retired → 404), OpenRouter
+      `openrouter/free` (free-model router, 6–9 s), `LLM_TIMEOUT_MS` 6000 →
+      12000 (ceiling, not delay). End-to-end route check: crisis 9 ms, static
+      4 ms, flow 2 ms, `mode: "llm"` with correct ids (7.6, 7.2) in 3.3–3.6 s,
+      grounded smalltalk in 1.6 s, 3/3 provider calls OK
+- [x] **`CLAUDE.md`** added: doc map + precedence, non-negotiables, pipeline,
+      hybrid invariants, provider reality check, housekeeping
 
 ### Hybrid LLM layer (PLANLLM phases 0–7)
 - [x] **Eval harness + golden corpus** (`tests/eval/`): 163 typed cases over 13
@@ -65,7 +105,8 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
 - [x] **i18n/UI**: `clarifyPrompt`  key (fr + ar scaffold,
       `TODO(encadrante)` sign-off pending), `MessageBubble` badge on static
       answers, `mode`/`matchedId`/`confidence` on the response contract
-- [x] **Tests**: 187 passing (incl. `tests/router.test.ts`,
+- [x] **Tests**: 187 passing at the time of that commit (now 205, see the
+      hardening entry above) (incl. `tests/router.test.ts`,
       `tests/hybrid-route.test.ts`, `tests/retriever.test.ts`,
       `tests/context.test.ts`, `tests/rate-limit.test.ts`,
       `tests/cache.test.ts`, `tests/validator.test.ts`,
@@ -238,6 +279,12 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   fallback (single-generic-keyword cases like "Qu'est-ce que le
   cyberharcèlement ?" are documented HYBRID-REQUIRED corpus gaps). Set one key
   in `.env` + `npm run index-embeddings` to regenerate `data/embeddings.json`.
+- **Provider model ids drift.** Verified 2026-08-20: Groq retired
+  `llama-3.3-70b-versatile` (404) and `gemini-3.5-flash-lite`, while valid,
+  answered in 15–86 s on this key. Check the provider's live model list (and
+  make one real call) before trusting a model id in `.env`.
+- **No `import "server-only"` guard on `lib/llm/*`** although PLANLLM §14 asks
+  for it; keys are server-side by construction today (route handler only).
 - **New user-facing copy pending sign-off.** `clarifyPrompt` 
    (`lib/i18n.ts`) carry `TODO(encadrante)` — implementable
   now, needs Mme Belaous validation before public use (AGENTS.md §9/§13).

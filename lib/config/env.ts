@@ -13,8 +13,8 @@ export interface Config {
   geminiApiKey?: string;
   groqApiKey?: string;
   openrouterApiKey?: string;
-  geminiChatModel: string; // "gemini-3.5-flash-lite"
-  groqChatModel: string; // "llama-3.3-70b-versatile"
+  geminiChatModel: string; // "gemini-3.1-flash-lite"
+  groqChatModel: string; // "openai/gpt-oss-120b"
   openrouterModel?: string; // required iff llmProvider === "openrouter"
   llmTimeoutMs: number; // 6000
   llmMaxRetries: number; // 1
@@ -27,8 +27,8 @@ export interface Config {
   enableResponseCache: boolean; // true
 }
 
-const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
-const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
 const PROVIDER_KEYS: Record<ProviderId, string> = {
   gemini: "GEMINI_API_KEY",
@@ -36,7 +36,8 @@ const PROVIDER_KEYS: Record<ProviderId, string> = {
   openrouter: "OPENROUTER_API_KEY",
 };
 
-const PROVIDER_ORDER: ProviderId[] = ["gemini", "groq", "openrouter"];
+/** Default preference order; LLM_PROVIDER only moves its provider to the front. */
+export const PROVIDER_ORDER: readonly ProviderId[] = ["gemini", "groq", "openrouter"];
 
 function intFromEnv(env: Record<string, string | undefined>, name: string, fallback: number): number {
   const raw = env[name];
@@ -62,7 +63,12 @@ export function loadConfig(
 ): Config {
   const available: ProviderId[] = PROVIDER_ORDER.filter((id) => {
     const value = env[PROVIDER_KEYS[id]];
-    return value !== undefined && value.trim() !== "";
+    if (value === undefined || value.trim() === "") return false;
+    // OpenRouter cannot be called without an explicit model id: counting the
+    // key alone as "configured" would spend a rate-limit token per request
+    // and then fall back with no error surfaced anywhere.
+    if (id === "openrouter" && strFromEnv(env, "OPENROUTER_MODEL", "") === "") return false;
+    return true;
   });
 
   // llmProvider: the requested provider when it has a key; otherwise the first

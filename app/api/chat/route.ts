@@ -54,10 +54,23 @@ function isFarewell(message: string): boolean {
   return FAREWELL_PHRASES.some((phrase) => normalized === phrase);
 }
 
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const first = forwarded?.split(",")[0]?.trim();
-  return first && first.length > 0 ? first : "127.0.0.1";
+// Rate-limit identity for the LLM budget. Client-supplied values must never
+// be trusted blindly: the leftmost x-forwarded-for entry is whatever the
+// caller typed, so prefer the single-IP headers a proxy sets itself, then the
+// LAST forwarded hop (the address our own proxy observed). With no proxy
+// header at all, fall back to the session so one visitor cannot drain the
+// whole budget for everybody.
+function rateLimitKey(request: Request, sessionId: string | null): string {
+  const direct =
+    request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip");
+  if (direct && direct.trim() !== "") return `ip:${direct.trim()}`;
+  const hops = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop !== "");
+  const observed = hops[hops.length - 1];
+  if (observed !== undefined) return `ip:${observed}`;
+  return sessionId !== null ? `session:${sessionId}` : "anonymous";
 }
 
 // Steps 5 & 6: high-confidence static match, otherwise the hybrid LLM layer
@@ -83,7 +96,7 @@ async function resolveAnswer(
     });
   }
 
-  if (!rateLimiter.allow(clientIp(request))) {
+  if (!rateLimiter.allow(rateLimitKey(request, sessionId))) {
     logMeta(cfg, { mode: "fallback", latencyMs: Date.now() - startedAt });
     return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false, mode: "fallback" });
   }
@@ -165,24 +178,38 @@ export async function POST(request: Request) {
     const ctx = getContext(sessionId);
     const pending = ctx?.pendingClarify ?? null;
     if (pending && pending.expiresAt > Date.now()) {
+      const base = ctx ?? emptyContext();
       const resolved = resolvePendingClarify(message, pending.ids);
       if (resolved !== null) {
-        setContext(sessionId, noteAnswer(setPendingClarify(ctx ?? emptyContext(), null), resolved));
-        return NextResponse.json({
-          text: qaAnswer(resolved),
-          isCrisis: false,
-          mode: "static",
-          matchedId: resolved,
-        });
-      }
-      const stale = pending.stale + 1;
-      if (stale >= 2) {
-        setContext(sessionId, setPendingClarify(ctx ?? emptyContext(), null));
+        // The pending question is answered either way. A pending id that no
+        // longer exists in QA_DATABASE (knowledge-base edit while the session
+        // was live) must never surface as a 500: drop the clarification and
+        // let the normal pipeline handle this message.
+        let text: string | null = null;
+        try {
+          text = qaAnswer(resolved);
+        } catch {
+          text = null;
+        }
+        const cleared = setPendingClarify(base, null);
+        setContext(sessionId, text === null ? cleared : noteAnswer(cleared, resolved));
+        if (text !== null) {
+          return NextResponse.json({
+            text,
+            isCrisis: false,
+            mode: "static",
+            matchedId: resolved,
+          });
+        }
       } else {
-        const base = ctx ?? emptyContext();
-        setContext(sessionId, { ...base, pendingClarify: { ...pending, stale } });
-        const prompt = clarifyPromptText(pending.ids);
-        return NextResponse.json({ text: prompt ?? fallbackMessage("fr"), isCrisis: false });
+        const stale = pending.stale + 1;
+        if (stale >= 2) {
+          setContext(sessionId, setPendingClarify(base, null));
+        } else {
+          setContext(sessionId, { ...base, pendingClarify: { ...pending, stale } });
+          const prompt = clarifyPromptText(pending.ids);
+          return NextResponse.json({ text: prompt ?? fallbackMessage("fr"), isCrisis: false });
+        }
       }
     }
   }

@@ -93,7 +93,10 @@ export async function classify(
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const completion = await completeJSON(
-        { prompt, system: SYSTEM_PROMPT, maxOutputTokens: 300, temperature: 0 },
+        // 768, not 300: reasoning-capable models spend 250-320 tokens thinking
+        // before emitting the object, and a truncated body is rejected by the
+        // provider (Groq json_validate_failed) or arrives without parts.
+        { prompt, system: SYSTEM_PROMPT, maxOutputTokens: 768, temperature: 0 },
         providers,
         cfg,
       );

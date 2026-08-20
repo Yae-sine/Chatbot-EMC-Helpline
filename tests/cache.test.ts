@@ -1,5 +1,5 @@
-// TTL cache tests (PLANLLM Phase 7): expiry on read, LRU eviction, refresh
-// on access, fake timers.
+// TTL cache tests (PLANLLM Phase 7): absolute expiry on read, LRU eviction,
+// recency refresh on access, fake timers.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTTLCache, fnv1a } from "@/lib/chatbot/cache";
@@ -14,18 +14,21 @@ describe("createTTLCache", () => {
     vi.useRealTimers();
   });
 
-  it("returns stored values and refreshes expiry on read", () => {
+  it("expires ttlMs after the write, however often the key is read", () => {
     const cache = createTTLCache<string, number>(10, 600_000);
     cache.set("a", 1);
     expect(cache.get("a")).toBe(1);
-    // Read at 599s is within TTL; moving 599s later again must still hit.
+    // Still inside the TTL.
     vi.advanceTimersByTime(599_000);
     expect(cache.get("a")).toBe(1);
-    vi.advanceTimersByTime(599_000);
-    expect(cache.get("a")).toBe(1);
-    // Idle past the TTL: expired.
-    vi.advanceTimersByTime(601_000);
+    // Reading does NOT extend the entry: a hot key must not pin a stale
+    // routing decision past the TTL (absolute, not sliding).
+    vi.advanceTimersByTime(2_000);
     expect(cache.get("a")).toBeUndefined();
+    // Writing again restarts the TTL.
+    cache.set("a", 2);
+    vi.advanceTimersByTime(599_000);
+    expect(cache.get("a")).toBe(2);
   });
 
   it("expires entries on read after the TTL", () => {

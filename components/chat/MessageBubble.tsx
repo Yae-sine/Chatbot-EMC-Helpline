@@ -1,7 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
-import { Badge } from "@/components/ui/Badge";
 import { LinkifiedText } from "@/components/chat/LinkifiedText";
 import { BreathingPulse } from "@/components/chat/BreathingPulse";
 import { cn } from "@/lib/utils";

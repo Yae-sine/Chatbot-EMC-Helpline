@@ -6,8 +6,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QA_DATABASE } from "@/data/qa-database";
-import { emptyContext, setProfile } from "@/lib/chatbot/context";
-import { getContext } from "@/lib/chatbot/session";
+import { emptyContext, setPendingClarify, setProfile } from "@/lib/chatbot/context";
+import { getContext, setContext } from "@/lib/chatbot/session";
 
 interface ChatResponse {
   text: string;
@@ -38,12 +38,15 @@ function resetRouteModule(): void {
   routeModule = null;
 }
 
-async function post(body: Record<string, unknown>): Promise<ChatResponse> {
+async function post(
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+): Promise<ChatResponse> {
   const { POST } = await ensureRouteLoaded();
   const response = await POST(
     new Request("http://localhost/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
     }),
   );
@@ -88,6 +91,28 @@ describe("provider-less route (no LLM keys)", () => {
     const response = await post({ message: "Quelle heure est-il ?" });
     expect(response.mode).toBe("fallback");
     expect(response.text).toContain("Je n'ai pas");
+  });
+
+  it("counts exactly one turn per request", async () => {
+    // Double counting would silence the LLM layer after half the intended
+    // conversation length (SESSION_TURN_CAP).
+    const sessionId = "turn-count-once";
+    await post({ message: "Quelle heure est-il ?", sessionId });
+    expect(getContext(sessionId)?.turnCount).toBe(1);
+    await post({ message: "Et demain ?", sessionId });
+    await post({ message: "Et après ?", sessionId });
+    expect(getContext(sessionId)?.turnCount).toBe(3);
+  });
+
+  it("never 500s on a pending clarification whose id left the database", async () => {
+    const sessionId = "clarify-stale-id";
+    setContext(sessionId, setPendingClarify(emptyContext(), ["9.99", "3.1"]));
+    const response = await post({ message: "1", sessionId });
+    expect(typeof response.text).toBe("string");
+    expect(response.text.length).toBeGreaterThan(0);
+    expect(response.isCrisis).toBe(false);
+    // The unusable clarification is dropped, never re-asked.
+    expect(getContext(sessionId)?.pendingClarify).toBeNull();
   });
 
   it("learns the parent profile from the guided tree (Phase 5)", async () => {
@@ -148,6 +173,35 @@ describe("hybrid route with a stubbed provider", () => {
     expect(QA_DATABASE.some((entry) => entry.id === matchedId)).toBe(true);
     expect(answerOf(matchedId)).toBe(response.text);
     expect(response.text.length).toBeGreaterThan(20);
+  });
+
+  it("budgets the LLM path per client, and a spoofed forwarded-for cannot reset it", async () => {
+    // Default budget is 10/min. Distinct clients each get their own.
+    for (let i = 0; i < 12; i += 1) {
+      const response = await post({ message: "Je veux aider mon fils" }, { "x-real-ip": `9.9.9.${i}` });
+      expect(response.mode).toBe("llm");
+    }
+    // One client: the 11th call in the same minute is denied and falls back.
+    const modes: Array<string | undefined> = [];
+    for (let i = 0; i < 11; i += 1) {
+      const response = await post({ message: "Je veux aider mon fils" }, { "x-real-ip": "9.9.9.100" });
+      modes.push(response.mode);
+    }
+    expect(modes.slice(0, 10).every((mode) => mode === "llm")).toBe(true);
+    expect(modes[10]).toBe("fallback");
+
+    // Rotating the client-supplied leftmost hop must not buy a fresh budget:
+    // only the last hop (what our proxy observed) identifies the caller.
+    const spoofed = await post(
+      { message: "Je veux aider mon fils" },
+      { "x-forwarded-for": "1.2.3.4, 9.9.9.100" },
+    );
+    expect(spoofed.mode).toBe("fallback");
+    const otherHop = await post(
+      { message: "Je veux aider mon fils" },
+      { "x-forwarded-for": "1.2.3.4, 9.9.9.200" },
+    );
+    expect(otherHop.mode).toBe("llm");
   });
 
   it("a follow-up anchored by a parent profile never resolves to the generic 2.2", async () => {

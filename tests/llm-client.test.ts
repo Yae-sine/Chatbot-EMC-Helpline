@@ -31,8 +31,8 @@ function baseCfg(overrides: Partial<Config> = {}): Config {
   return {
     llmProvider: "gemini",
     geminiApiKey: "test-key",
-    geminiChatModel: "gemini-3.5-flash-lite",
-    groqChatModel: "llama-3.3-70b-versatile",
+    geminiChatModel: "gemini-3.1-flash-lite",
+    groqChatModel: "openai/gpt-oss-120b",
     llmTimeoutMs: 5000,
     llmMaxRetries: 1,
     llmSmalltalk: true,
@@ -59,8 +59,8 @@ describe("loadConfig", () => {
     expect(cfg.sessionTurnCap).toBe(30);
     expect(cfg.enableMetaLogging).toBe(false);
     expect(cfg.enableResponseCache).toBe(true);
-    expect(cfg.geminiChatModel).toBe("gemini-3.5-flash-lite");
-    expect(cfg.groqChatModel).toBe("llama-3.3-70b-versatile");
+    expect(cfg.geminiChatModel).toBe("gemini-3.1-flash-lite");
+    expect(cfg.groqChatModel).toBe("openai/gpt-oss-120b");
   });
 
   it("selects the requested provider when its key is present", () => {
@@ -103,16 +103,27 @@ describe("buildProviderChain", () => {
     expect(buildProviderChain(loadConfig({}))).toEqual([]);
   });
 
-  it("builds only providers that have a key, in fixed order", () => {
+  it("builds only providers that have a key, in the default order", () => {
     const cfg = baseCfg({ groqApiKey: "g", openrouterApiKey: "o", openrouterModel: "m" });
     expect(buildProviderChain(cfg).map((p) => p.id)).toEqual(["gemini", "groq", "openrouter"]);
     expect(buildProviderChain(loadConfig({ GROQ_API_KEY: "g" })).map((p) => p.id)).toEqual(["groq"]);
   });
 
-  it("omits openrouter when the model is not configured", () => {
+  it("puts LLM_PROVIDER first and keeps the others as fallbacks", () => {
+    const cfg = loadConfig({ GEMINI_API_KEY: "gem", GROQ_API_KEY: "g", LLM_PROVIDER: "groq" });
+    expect(cfg.llmProvider).toBe("groq");
+    expect(buildProviderChain(cfg).map((p) => p.id)).toEqual(["groq", "gemini"]);
+  });
+
+  it("treats openrouter without a model as no provider at all", () => {
+    // A key alone cannot be called: counting it as "LLM configured" would
+    // spend a rate-limit token per request and then fall back silently.
     const cfg = loadConfig({ OPENROUTER_API_KEY: "k", LLM_PROVIDER: "openrouter" });
-    expect(cfg.llmProvider).toBe("openrouter");
+    expect(cfg.llmProvider).toBeNull();
     expect(buildProviderChain(cfg)).toEqual([]);
+    const configured = loadConfig({ OPENROUTER_API_KEY: "k", OPENROUTER_MODEL: "m" });
+    expect(configured.llmProvider).toBe("openrouter");
+    expect(buildProviderChain(configured).map((p) => p.id)).toEqual(["openrouter"]);
   });
 });
 
@@ -144,7 +155,7 @@ describe("completeJSON (gemini)", () => {
     expect(result.json).toEqual({ route: "qa", qaIds: ["3.4"] });
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toContain("models/gemini-3.5-flash-lite:generateContent");
+    expect(calls[0].url).toContain("models/gemini-3.1-flash-lite:generateContent");
     expect(calls[0].url).toContain("key=test-key");
     const body = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
     expect(body.systemInstruction).toEqual({ parts: [{ text: "règles" }] });
@@ -301,13 +312,13 @@ describe("completeJSON (gemini)", () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(
         200,
-        JSON.stringify({ embeddings: [{ values: [0.1, 0.2] }, { values: [] }] }),
+        JSON.stringify({ embeddings: [{ values: [0.1, 0.2] }, { values: [0.3, 0.4] }] }),
       ),
     );
     vi.stubGlobal("fetch", fetchMock);
     const cfg = baseCfg();
     const vectors = await buildProviderChain(cfg)[0].embedTexts(["bonjour", "salut"]);
-    expect(vectors).toEqual([[0.1, 0.2], []]);
+    expect(vectors).toEqual([[0.1, 0.2], [0.3, 0.4]]);
 
     // Regression: the request must target the current embedding model in both
     // the URL and the body — legacy text-embedding-* models are retired (404).
@@ -318,6 +329,22 @@ describe("completeJSON (gemini)", () => {
     };
     expect(body.requests?.every((request) => request.model === `models/${GEMINI_EMBEDDING_MODEL}`))
       .toBe(true);
+  });
+
+  it("rejects a batch containing an unusable vector instead of returning []", async () => {
+    // An empty vector would be written to the artifact and score 0 forever
+    // (cosine bails on the length mismatch): the batch must fail loudly.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(200, JSON.stringify({ embeddings: [{ values: [0.1, 0.2] }, { values: [] }] })),
+      ),
+    );
+    const cfg = baseCfg();
+    await expect(buildProviderChain(cfg)[0].embedTexts(["bonjour", "salut"])).rejects.toMatchObject({
+      kind: "bad_json",
+      provider: "gemini",
+    });
   });
 
   it("throws not_available for Groq embeddings (retriever falls back lexical-only)", async () => {

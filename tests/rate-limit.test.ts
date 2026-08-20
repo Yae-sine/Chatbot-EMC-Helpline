@@ -31,6 +31,18 @@ describe("createRateLimiter", () => {
     expect(limiter.allow("a", minuteMs + 1000)).toBe(false);
   });
 
+  it("stays correct after thousands of distinct keys (bounded maps)", () => {
+    // The maps are swept back under their cap; a fresh key must still be
+    // metered exactly, and a swept key at worst gets its quota reset early.
+    const limiter = createRateLimiter({ perMinute: 1, perDay: 100 });
+    const now = 1_000_000_000_000;
+    for (let i = 0; i < 5000; i += 1) {
+      expect(limiter.allow(`ip-${i}`, now)).toBe(true);
+    }
+    expect(limiter.allow("ip-fresh", now)).toBe(true);
+    expect(limiter.allow("ip-fresh", now)).toBe(false);
+  });
+
   it("caps the day independently of the minute", () => {
     const limiter = createRateLimiter({ perMinute: 5, perDay: 3 });
     const dayMs = 86_400_000;

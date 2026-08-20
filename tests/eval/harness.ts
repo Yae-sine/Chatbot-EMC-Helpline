@@ -77,6 +77,17 @@ interface RouteBody {
 
 const MODES: ReadonlySet<string> = new Set(["static", "llm", "fallback"]);
 
+// The route budgets the LLM path per client (10/min, 200/day). A single
+// identity would throttle the corpus into `fallback` after ~10 turns and the
+// report would measure the limiter instead of the hybrid layer, so every turn
+// gets its own synthetic client address.
+let turnSequence = 0;
+
+function nextClientIp(): string {
+  turnSequence += 1;
+  return `10.${(turnSequence >> 16) & 255}.${(turnSequence >> 8) & 255}.${turnSequence & 255}`;
+}
+
 /** One request/response cycle through the real route. */
 async function postTurn(
   input: string,
@@ -86,7 +97,7 @@ async function postTurn(
   const response = await POST(
     new Request("http://localhost/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-real-ip": nextClientIp() },
       body: JSON.stringify({ message: input, sessionId: sessionId ?? null }),
     }),
   );

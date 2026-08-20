@@ -1,10 +1,12 @@
 // Zero-dependency fetch-based LLM client (PLANLLM Phase 1).
 //
-// Provider chain: gemini → groq → openrouter (order fixed). A provider is
+// Provider chain: LLM_PROVIDER first, then the remaining providers in the
+// default gemini → groq → openrouter order. A provider is
 // skipped when its key is missing or the circuit breaker is open. Every
 // failure degrades to a ProviderError that the router turns into today's
 // fallback — the LLM layer can never produce a user-facing error.
 
+import { PROVIDER_ORDER } from "@/lib/config/env";
 import type { Config, ProviderId } from "@/lib/config/env";
 import { recordCall } from "@/lib/chatbot/meters";
 
@@ -181,9 +183,23 @@ function readGeminiEmbeddings(value: unknown, provider: ProviderId): number[][] 
   ) {
     return value.embeddings.map((entry) => {
       const row = entry as { values?: unknown };
-      return Array.isArray(row.values) && row.values.every((n) => typeof n === "number")
-        ? (row.values as number[])
-        : [];
+      // A row that is not a non-empty number[] cannot be indexed: an empty
+      // vector would be written to the artifact and score 0 forever (cosine
+      // bails on the length mismatch), leaving that entry retrieval-blind
+      // with no error anywhere. Fail the batch instead.
+      if (
+        !Array.isArray(row.values) ||
+        row.values.length === 0 ||
+        !row.values.every((n) => typeof n === "number")
+      ) {
+        throw new ProviderError(
+          "bad_json",
+          provider,
+          undefined,
+          "embeddings[].values is not a non-empty number[]",
+        );
+      }
+      return row.values as number[];
     });
   }
   throw new ProviderError("bad_json", provider, undefined, "missing embeddings[]");
@@ -303,34 +319,44 @@ function openAICompatibleProvider(
 
 // ── chain ──────────────────────────────────────────────────────────────────
 
-/** Providers in fixed order, only those with a configured key. [] when llmProvider === null. */
+/**
+ * Only providers with a usable configuration, cfg.llmProvider (LLM_PROVIDER)
+ * first and the rest in PROVIDER_ORDER as fallbacks. [] when llmProvider is
+ * null.
+ */
 export function buildProviderChain(cfg: Config): LLMProvider[] {
-  if (cfg.llmProvider === null) return [];
-  const chain: LLMProvider[] = [];
-  if (cfg.geminiApiKey) chain.push(geminiProvider(cfg, cfg.geminiApiKey));
-  if (cfg.groqApiKey) {
-    chain.push(
-      openAICompatibleProvider(
-        "groq",
-        "https://api.groq.com/openai/v1/chat/completions",
-        cfg.groqChatModel,
-        cfg.groqApiKey,
-        cfg.llmTimeoutMs,
-      ),
-    );
-  }
-  if (cfg.openrouterApiKey && cfg.openrouterModel) {
-    chain.push(
-      openAICompatibleProvider(
-        "openrouter",
-        "https://openrouter.ai/api/v1/chat/completions",
-        cfg.openrouterModel,
-        cfg.openrouterApiKey,
-        cfg.llmTimeoutMs,
-      ),
-    );
-  }
-  return chain;
+  const requested = cfg.llmProvider;
+  if (requested === null) return [];
+  const build: Record<ProviderId, () => LLMProvider | null> = {
+    gemini: () => (cfg.geminiApiKey ? geminiProvider(cfg, cfg.geminiApiKey) : null),
+    groq: () =>
+      cfg.groqApiKey
+        ? openAICompatibleProvider(
+            "groq",
+            "https://api.groq.com/openai/v1/chat/completions",
+            cfg.groqChatModel,
+            cfg.groqApiKey,
+            cfg.llmTimeoutMs,
+          )
+        : null,
+    openrouter: () =>
+      cfg.openrouterApiKey && cfg.openrouterModel
+        ? openAICompatibleProvider(
+            "openrouter",
+            "https://openrouter.ai/api/v1/chat/completions",
+            cfg.openrouterModel,
+            cfg.openrouterApiKey,
+            cfg.llmTimeoutMs,
+          )
+        : null,
+  };
+  const order: ProviderId[] = [
+    requested,
+    ...PROVIDER_ORDER.filter((id) => id !== requested),
+  ];
+  return order
+    .map((id) => build[id]())
+    .filter((provider): provider is LLMProvider => provider !== null);
 }
 
 export interface CompletionResult {
@@ -359,33 +385,40 @@ export async function completeJSON(
 
   for (const provider of chain) {
     if (isOpen(provider.id)) continue;
-    let attempts = 0;
+    // Separate budgets: a 429 retry must not consume the bad-JSON retry.
+    let rateLimitRetries = 0;
+    let jsonRetries = 0;
     while (true) {
       const startedAt = Date.now();
       try {
         const response = await provider.complete({
           ...req,
-          temperature: attempts > 0 ? 0 : (req.temperature ?? 0),
+          temperature: jsonRetries > 0 ? 0 : (req.temperature ?? 0),
         });
-        recordCall({ provider: provider.id, ok: true, latencyMs: Date.now() - startedAt });
-        recordSuccess(provider.id);
         let json: unknown;
         try {
           json = JSON.parse(response.text);
         } catch {
+          // Not a success: a provider that answers prose instead of JSON must
+          // be metered as a failure and must feed the circuit breaker, or it
+          // is re-probed on every request and reported as 100 % healthy.
+          recordCall({ provider: provider.id, ok: false, latencyMs: Date.now() - startedAt });
+          recordFailure(provider.id);
           const badJson = new ProviderError(
             "bad_json",
             provider.id,
             undefined,
-            `invalid JSON from provider (attempt ${attempts})`,
+            `invalid JSON from provider (attempt ${jsonRetries})`,
           );
-          if (attempts < maxRetries) {
-            attempts += 1;
+          if (jsonRetries < maxRetries) {
+            jsonRetries += 1;
             continue; // retry once at temperature 0
           }
           lastError = badJson;
           break;
         }
+        recordCall({ provider: provider.id, ok: true, latencyMs: Date.now() - startedAt });
+        recordSuccess(provider.id);
         return { json, raw: response.text, provider: provider.id };
       } catch (error) {
         recordCall({ provider: provider.id, ok: false, latencyMs: Date.now() - startedAt });
@@ -394,8 +427,8 @@ export async function completeJSON(
             ? error
             : new ProviderError("network", provider.id, undefined, String(error));
         recordFailure(provider.id);
-        if (providerError.kind === "rate_limit" && attempts < maxRetries) {
-          attempts += 1;
+        if (providerError.kind === "rate_limit" && rateLimitRetries < maxRetries) {
+          rateLimitRetries += 1;
           await sleep(1000);
           continue;
         }

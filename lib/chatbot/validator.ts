@@ -8,8 +8,11 @@
 import { detectCrisis } from "@/lib/chatbot/safety";
 
 const URL_TOKEN_RE = /https?:\/\/\S+/g;
-// Grouped phone-ish token: 2–4 digits, separator(s), 2–4 digits, 1–3 times
-const PHONE_TOKEN_RE = /\d{2,4}([\s.?.-]\d{2,4}){1,3}/g;
+// Grouped phone-ish token: 2–4 digits, separator(s), 2–4 digits, 1–3 times.
+// Separators are space, ".", "/" and "-" — "/" matters because the validated
+// database writes numbers as "0522/12/34/56". Built via RegExp so the "/" in
+// the character class needs no escaping.
+const PHONE_TOKEN_RE = new RegExp("\\d{2,4}([\\s./-]\\d{2,4}){1,3}", "g");
 
 const MAX_SMALLTALK_LENGTH = 300;
 const MAX_FREE_TEXT_LENGTH = 300;

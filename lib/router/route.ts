@@ -7,7 +7,7 @@ import { QA_DATABASE } from "@/data/qa-database";
 import { t } from "@/lib/i18n";
 import { fallbackMessage } from "@/lib/chatbot/fallback";
 import { createTTLCache, fnv1a } from "@/lib/chatbot/cache";
-import { emptyContext, noteAnswer, noteTurn, setPendingClarify, summarize, type SessionContext } from "@/lib/chatbot/context";
+import { emptyContext, noteAnswer, setPendingClarify, summarize, type SessionContext } from "@/lib/chatbot/context";
 import { detectCrisis } from "@/lib/chatbot/safety";
 import { checkFreeText, type ClassifierValidated } from "@/lib/chatbot/validator";
 import { launchFlow } from "@/lib/chatbot/flows";
@@ -84,7 +84,9 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
   //    get today's fallback.
   if (cfg.llmProvider === null || providers.length === 0) return fallback();
 
-  // b. Caps gate only the LLM branch.
+  // b. Caps gate only the LLM branch. The turn is counted once by the caller
+  //    (route handler, step 2b) — never again here, or the cap would be hit
+  //    after half the intended number of turns.
   if (rawMessage.length > cfg.messageCharLimit) return fallback();
   if (ctx.turnCount > cfg.sessionTurnCap) return fallback();
 
@@ -105,7 +107,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
       mode: "llm",
       text,
       matchedId: id,
-      contextDelta: noteTurn(noteAnswer(ctx, id)),
+      contextDelta: noteAnswer(ctx, id),
     };
   }
 
@@ -144,7 +146,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
         mode: "llm",
         text,
         matchedId: id,
-        contextDelta: noteTurn(noteAnswer(ctx, id)),
+        contextDelta: noteAnswer(ctx, id),
       };
     }
     case "flow": {
@@ -161,7 +163,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
         options: output.options,
         flowId: classified.flow as string,
         flowStateToPersist: nextState,
-        contextDelta: noteTurn(ctx),
+        contextDelta: ctx,
       };
     }
     case "clarify": {
@@ -172,12 +174,17 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
         mode: "llm",
         text,
         clarify: { ids },
-        contextDelta: noteTurn(setPendingClarify(ctx, ids)),
+        contextDelta: setPendingClarify(ctx, ids),
       };
     }
     case "offtopic":
-      return { ...fallback(), contextDelta: noteTurn(ctx) };
+      return { ...fallback(), contextDelta: ctx };
     case "smalltalk": {
+      // LLM_SMALLTALK=false is the kill switch for generated free text: no
+      // model-authored sentence may reach the user, only validated copy.
+      if (!cfg.llmSmalltalk) {
+        return { mode: "fallback", text: fallbackMessage("fr"), contextDelta: ctx };
+      }
       const proposed = classified.smalltalk ?? "";
       // Free text is safe only when short, grounded and not a hidden crisis.
       const verdict = checkFreeText(proposed, [rawMessage]);
@@ -188,12 +195,12 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
             mode: "fallback",
             text: crisis.message ?? fallbackMessage("fr"),
             isCrisis: true,
-            contextDelta: noteTurn(ctx),
+            contextDelta: ctx,
           };
         }
-        return { mode: "fallback", text: fallbackMessage("fr"), contextDelta: noteTurn(ctx) };
+        return { mode: "fallback", text: fallbackMessage("fr"), contextDelta: ctx };
       }
-      return { mode: "llm", text: proposed, contextDelta: noteTurn(ctx) };
+      return { mode: "llm", text: proposed, contextDelta: ctx };
     }
   }
 }
