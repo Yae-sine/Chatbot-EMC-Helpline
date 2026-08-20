@@ -384,7 +384,8 @@ eval set.
    (launch), `clarify` (1 question, then re-route on answer), `outOfDomain`
    (fallback), `smalltalk` (validated free text).
 5. Validate: schema, grounding regexes, crisis scan, length cap.
-6. Return with `mode: "static" | "llm"`, `matchedId`, `confidence` 
+6. Return with `mode: "static" | "llm"`, `matchedId`, `confidence` .
+
 ---
 
 ## 13. Failure/fallback strategy (graceful degradation)
@@ -615,7 +616,7 @@ dependencies beyond a thin fetch-based LLM client (prefer no SDK, or
 `lib/chatbot/matcher.ts` (confidence tiers), `lib/chatbot/session.ts`
 (context fields), `types/chat.ts` (`mode`, `matchedId`, `confidence`),
 `lib/i18n.ts` (new keys), `package.json` (eval/index scripts),
-`components/layout/AppShell.tsx` .
+`components/layout/AppShell.tsx`.
 
 **New:** `lib/llm/client.ts`, `lib/llm/classifier.ts`, `lib/llm/validator.ts`,
 `lib/rag/indexer.ts`, `lib/rag/retriever.ts`, `lib/router/route.ts`,

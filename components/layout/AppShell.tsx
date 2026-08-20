@@ -56,6 +56,9 @@ export function AppShell() {
         isCrisis: boolean;
         options?: string[];
         flowId?: string;
+        mode?: "static" | "llm" | "fallback";
+        matchedId?: string | null;
+        confidence?: number;
       };
       setMessages((prev) => [
         ...prev,
@@ -66,6 +69,9 @@ export function AppShell() {
           isCrisis: data.isCrisis,
           options: data.options,
           flowId: data.flowId,
+          mode: data.mode,
+          matchedId: data.matchedId,
+          confidence: data.confidence,
           timestamp: currentTime(),
         },
       ]);

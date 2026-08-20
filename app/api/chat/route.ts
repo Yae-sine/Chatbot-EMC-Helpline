@@ -4,11 +4,36 @@ import { detectCrisis } from "@/lib/chatbot/safety";
 import { matchEntry } from "@/lib/chatbot/matcher";
 import { fallbackMessage } from "@/lib/chatbot/fallback";
 import { detectIntent } from "@/lib/chatbot/intents";
-import { getFlowState, setFlowState } from "@/lib/chatbot/session";
-import { handleFlow } from "@/lib/chatbot/flows";
+import { getContext, getFlowState, setContext, setFlowState } from "@/lib/chatbot/session";
+import {
+  emptyContext,
+  mapGuidedProfile,
+  noteAnswer,
+  noteTurn,
+  resolvePendingClarify,
+  setPendingClarify,
+  setProfile,
+} from "@/lib/chatbot/context";
+import { handleFlow, launchFlow } from "@/lib/chatbot/flows";
+import { qaAnswer } from "@/lib/chatbot/flows/helpers";
+import { createRateLimiter } from "@/lib/chatbot/rate-limit";
+import { loadConfig } from "@/lib/config/env";
+import { buildProviderChain } from "@/lib/llm/client";
+import { createRetriever } from "@/lib/rag/retriever";
+import { clarifyPromptText, routeLLM } from "@/lib/router/route";
+import { logMeta } from "@/lib/chatbot/observe";
 import { t } from "@/lib/i18n";
 
 export const runtime = "nodejs";
+
+// Module-level singletons (per process), never rebuilt per request.
+const cfg = loadConfig();
+const providers = buildProviderChain(cfg);
+const retriever = createRetriever(cfg, QA_DATABASE);
+const rateLimiter = createRateLimiter({
+  perMinute: cfg.rateLimitPerMinute,
+  perDay: cfg.rateLimitPerDay,
+});
 
 const FAREWELL_PHRASES = [
   "merci",
@@ -27,6 +52,68 @@ const FAREWELL_PHRASES = [
 function isFarewell(message: string): boolean {
   const normalized = message.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
   return FAREWELL_PHRASES.some((phrase) => normalized === phrase);
+}
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const first = forwarded?.split(",")[0]?.trim();
+  return first && first.length > 0 ? first : "127.0.0.1";
+}
+
+// Steps 5 & 6: high-confidence static match, otherwise the hybrid LLM layer
+// (rate-limited; denied requests get today's fallback, never an error).
+async function resolveAnswer(
+  message: string,
+  sessionId: string | null,
+  request: Request,
+): Promise<NextResponse> {
+  const startedAt = Date.now();
+  const match = matchEntry(message, QA_DATABASE);
+  if (match.confidence === "high" && match.entry) {
+    if (sessionId) {
+      setContext(sessionId, noteAnswer(getContext(sessionId) ?? emptyContext(), match.entry.id));
+    }
+    logMeta(cfg, { mode: "static", matchedId: match.entry.id, latencyMs: Date.now() - startedAt });
+    return NextResponse.json({
+      text: match.entry.answer,
+      isCrisis: false,
+      mode: "static",
+      matchedId: match.entry.id,
+      confidence: 1,
+    });
+  }
+
+  if (!rateLimiter.allow(clientIp(request))) {
+    logMeta(cfg, { mode: "fallback", latencyMs: Date.now() - startedAt });
+    return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false, mode: "fallback" });
+  }
+
+  const context = sessionId ? getContext(sessionId) : null;
+  const outcome = await routeLLM({ rawMessage: message, context, cfg, providers, retriever });
+  logMeta(cfg, {
+    mode: outcome.mode,
+    matchedId: outcome.matchedId,
+    latencyMs: Date.now() - startedAt,
+  });
+  if (sessionId) {
+    if (outcome.flowStateToPersist !== undefined) {
+      setFlowState(sessionId, outcome.flowStateToPersist);
+    }
+    if (outcome.contextDelta) {
+      setContext(sessionId, outcome.contextDelta);
+    }
+  }
+  if (outcome.isCrisis) {
+    return NextResponse.json({ text: outcome.text, isCrisis: true });
+  }
+  return NextResponse.json({
+    text: outcome.text,
+    isCrisis: false,
+    options: outcome.options,
+    flowId: outcome.flowId,
+    mode: outcome.mode,
+    matchedId: outcome.matchedId,
+  });
 }
 
 export async function POST(request: Request) {
@@ -65,6 +152,41 @@ export async function POST(request: Request) {
     });
   }
 
+  // 2b. Count the turn in the session context (gates the LLM path).
+  if (sessionId) {
+    setContext(sessionId, noteTurn(getContext(sessionId) ?? emptyContext()));
+  }
+
+  // 2c. Pending clarification re-route (PLANLLM Phase 5): if the classifier
+  // asked to disambiguate, a deterministic answer to that prompt is served
+  // directly. Two consecutive stale answers abandon the pending question and
+  // continue the normal pipeline — the user is never trapped.
+  if (sessionId) {
+    const ctx = getContext(sessionId);
+    const pending = ctx?.pendingClarify ?? null;
+    if (pending && pending.expiresAt > Date.now()) {
+      const resolved = resolvePendingClarify(message, pending.ids);
+      if (resolved !== null) {
+        setContext(sessionId, noteAnswer(setPendingClarify(ctx ?? emptyContext(), null), resolved));
+        return NextResponse.json({
+          text: qaAnswer(resolved),
+          isCrisis: false,
+          mode: "static",
+          matchedId: resolved,
+        });
+      }
+      const stale = pending.stale + 1;
+      if (stale >= 2) {
+        setContext(sessionId, setPendingClarify(ctx ?? emptyContext(), null));
+      } else {
+        const base = ctx ?? emptyContext();
+        setContext(sessionId, { ...base, pendingClarify: { ...pending, stale } });
+        const prompt = clarifyPromptText(pending.ids);
+        return NextResponse.json({ text: prompt ?? fallbackMessage("fr"), isCrisis: false });
+      }
+    }
+  }
+
   // 3. Resume an active conversational flow (stateful session).
   if (sessionId) {
     const state = getFlowState(sessionId);
@@ -74,13 +196,23 @@ export async function POST(request: Request) {
       // the general matcher answer this message normally.
       if (output.fallbackToMatcher) {
         setFlowState(sessionId, null);
-        const match = matchEntry(message, QA_DATABASE);
-        if (match.matched && match.entry) {
-          return NextResponse.json({ text: match.entry.answer, isCrisis: false });
-        }
-        return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false });
+        return resolveAnswer(message, sessionId, request);
       }
       setFlowState(sessionId, nextState);
+
+      // Guided-tree profile learning: the first path entry that maps to a
+      // Profile becomes the session profile (soft retrieval boost).
+      if (state.flowId === "guided-qualification" && nextState) {
+        const pathIds = (nextState.data.path ?? "").split(",").filter(Boolean);
+        for (const pathId of pathIds) {
+          const profile = mapGuidedProfile(pathId);
+          if (profile) {
+            setContext(sessionId, setProfile(getContext(sessionId) ?? emptyContext(), profile));
+            break;
+          }
+        }
+      }
+
       return NextResponse.json({
         text: output.text,
         isCrisis: false,
@@ -93,7 +225,7 @@ export async function POST(request: Request) {
   // 4. Explicit user request to start a guided parcours or support exercise.
   const intent = detectIntent(message);
   if (intent) {
-    const { output, nextState } = handleFlow({ flowId: intent, step: "start", data: {} }, "");
+    const { output, nextState } = launchFlow(intent);
     if (sessionId) setFlowState(sessionId, nextState);
     return NextResponse.json({
       text: output.text,
@@ -103,11 +235,6 @@ export async function POST(request: Request) {
     });
   }
 
-  // 5. General keyword matching against the validated Q&A database.
-  const match = matchEntry(message, QA_DATABASE);
-  if (match.matched && match.entry) {
-    return NextResponse.json({ text: match.entry.answer, isCrisis: false });
-  }
-
-  return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false });
+  // 5. General keyword matching + hybrid LLM understanding layer.
+  return resolveAnswer(message, sessionId, request);
 }

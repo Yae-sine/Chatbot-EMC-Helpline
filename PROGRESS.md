@@ -1,22 +1,76 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state: `lint` and `typecheck` clean, `test` 95/95 passing, and
-`build` all pass.
+Last verified state: `lint` and `typecheck` clean, `test` 187 passed (+ 2
+skipped live-only), `npm run eval` green (deterministic gate), `build` passing.
 
 ## Current Milestone
 
 **Jalon 2 & 3 (PFA internship, Aug 2026):** deliver the rule-based EMC Helpline
 chatbot — validated knowledge base wired into a keyword-matching engine behind a
 chat UI, plus a simple online-deployable interface. The most recent completed
-work is the **parcours polish iteration**: the stateful guided-parcours layer
-(7 flows) was made robust and complete — emotion-weather Phase 2 (dominant
-emotion) actually asks the validated question, wrong answers no longer destroy a
-flow, the juridique/informatif/psychologique menus now cover all the authorities,
-child-risk facettes and prevention good practices from the PDF, and a limits
-greeting is pushed at conversation start.
+work is the **hybrid LLM layer (PLANLLM phases 0–7, committed)**:
+static-first matching with a confidence gate, an LLM understanding layer
+(Gemini 2.5 Flash primary, Groq/OpenRouter chain fallback) that proposes QA ids
+/ flows / clarifications — text is always served from the validated database —
+plus RAG-light retrieval (build-time embeddings, no vector DB), short-term
+session context, per-client rate limits, classifier-result caching and a
+golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### Hybrid LLM layer (PLANLLM phases 0–7)
+- [x] **Eval harness + golden corpus** (`tests/eval/`): 163 typed cases over 13
+      categories (exact, paraphrase, typo, informal, short/long, ambiguous,
+      multi-intent, offtopic, adversarial, safety, retrieval,
+      deterministic-required), CI subset asserted on every run, `npm run eval`
+      prints the report; live-only subsets gated on `GEMINI_API_KEY`
+- [x] **Config + providers** (`lib/config/env.ts`, `lib/llm/client.ts`,
+      `.env.example`): typed env knobs, `loadDotEnv`, zero-dependency fetch
+      client for Gemini (generateContent/batchEmbedContents), Groq and
+      OpenRouter (OpenAI-compatible), retry/429/timeout/auth mapping, 3-failure
+      circuit breaker with half-open probe, `completeJSON` retry at
+      temperature 0 on invalid JSON
+- [x] **Matcher confidence gate** (`lib/chatbot/matcher.ts`): `STRONG_TERMS`,
+      `confidence` high = strong hit or ≥2 keywords (one generic keyword no
+      longer serves a wrong entry); tie-break extended (longest matched
+      keyword, then the canonical question mentioning it) → fixes e-blagh →
+      4.11, gendarmerie → 4.12, fraping → 6.13, dénigrement → 6.9,
+      parquet → 4.10
+- [x] **LLM understanding layer** (`lib/llm/classifier.ts`,
+      `lib/router/route.ts`, `lib/chatbot/validator.ts`): classifier outputs
+      route=qa (1 id) / clarify (2–3 ids) / flow / offtopic / smalltalk,
+      validated against the day's retrieved candidates + flow whitelist;
+      `routeLLM` ladder: caps → retrieval → degraded serve ≥0.75 → classifier
+      → verbatim `qaAnswer`/flows/clarify prompt/fallback; every failure
+      degrades to today's fallback; free-text smalltalk passes
+      `checkFreeText` (grounded, short, crisis-checked)
+- [x] **RAG-light retrieval** (`lib/rag/retriever.ts`, `lib/rag/indexer.ts`,
+      `scripts/index-embeddings.ts`): lexical + semantic (build-time
+      embeddings in `data/embeddings.json`, lazy-loaded, absent = supported
+      mode) hybrid score 0.6/0.4 + 0.15 profile boost; `npm run
+      index-embeddings` regenerates the artifact (needs a key); executed via
+      tsx (vitest exclude quirk — PLANLLM contingency applied)
+- [x] **Route cutover** (`app/api/chat/route.ts`): high-confidence static →
+      hybrid LLM (rate-limited per client, forward-IP, fallback on deny, no
+      new copy); session context (profile, last ids, pending clarification),
+      guided-tree profile learning, clarification re-route (id/"1"/"2"/letter/
+      question-text, 2 stale tries then pipeline rescue); module-level
+      cfg/providers/retriever singletons
+- [x] **Rate limiting / caching / observability** (`lib/chatbot/rate-limit.ts`
+      minute+day buckets; `lib/chatbot/cache.ts` TTL+LRU classifier-result
+      cache keyed by normalized message+context; `lib/chatbot/observe.ts`
+      `emc-meta` log lines without message content; `lib/chatbot/meters.ts`
+      provider call ring consumed by the live eval report)
+- [x] **i18n/UI**: `clarifyPrompt`  key (fr + ar scaffold,
+      `TODO(encadrante)` sign-off pending), `MessageBubble` badge on static
+      answers, `mode`/`matchedId`/`confidence` on the response contract
+- [x] **Tests**: 187 passing (incl. `tests/router.test.ts`,
+      `tests/hybrid-route.test.ts`, `tests/retriever.test.ts`,
+      `tests/context.test.ts`, `tests/rate-limit.test.ts`,
+      `tests/cache.test.ts`, `tests/validator.test.ts`,
+      `tests/llm-client.test.ts`); existing suite (safety, matcher, spotcheck,
+      flows, route-flows, guided, linkify) unchanged and green
 
 ### Backend / Matching engine
 - [x] `POST /api/chat` Route Handler (`app/api/chat/route.ts`), Node.js runtime,
@@ -166,6 +220,10 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
 - **Crisis over-triggering on single words.** Literal substring matching means
   benign sentences containing e.g. "suicide" or "mourir" trigger the crisis
   path. Intended per AGENTS.md §6 but a precision limitation.
+- **Crisis under-triggering on conjugated forms.** "je me scarifie" (conjugated)
+  is not caught by the literal keyword "me scarifier" — documented as a
+  KNOWNGAP in the eval corpus; extending `CRISIS_PROTOCOL` needs encadrante
+  sign-off (AGENTS.md §6).
 - **Flow continuation intercepts general questions (softened).** While a flow
   is active any non-option message gets the flow's `askAgain`, and the flow now
   **survives** the bad input (state retained, re-prompts). The user still needs
@@ -175,14 +233,26 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   UX note.
 - **In-memory sessions die on server restart/scale-out** (deployment caveat for
   long-running flows; harmless for this phase — no persistence per §10).
+- **Hybrid layer needs keys to engage.** Without `GEMINI_API_KEY` (or
+  Groq/OpenRouter) the LLM path is off: low-confidence messages get today's
+  fallback (single-generic-keyword cases like "Qu'est-ce que le
+  cyberharcèlement ?" are documented HYBRID-REQUIRED corpus gaps). Set one key
+  in `.env` + `npm run index-embeddings` to regenerate `data/embeddings.json`.
+- **New user-facing copy pending sign-off.** `clarifyPrompt` 
+   (`lib/i18n.ts`) carry `TODO(encadrante)` — implementable
+  now, needs Mme Belaous validation before public use (AGENTS.md §9/§13).
 
 ## Technical Debt
 
+- **`data/embeddings.json` is a generated artifact** (74 vectors, model
+  `gemini-embedding-001`) — absent by default; regenerate with `npm run
+  index-embeddings` after KB edits.
+- **Embedding provider only supports Gemini** (`gemini-embedding-001`;
+  the legacy `text-embedding-001` family is retired — 404 on v1beta);
+  Groq/OpenRouter chains run lexical-only retrieval (not_available is caught).
 - **Limited UI/component tests.** `@testing-library/react`/`jsdom` configured;
   only `LinkifiedText` is covered. `QuickReplies`/`BreathingPulse`/AppShell
   session wiring have no component coverage yet.
-- **No `.env.example`.** `.env*` is gitignored but no template documents what
-  variables a future deploy could use (none are used today).
 - **Version defined in two places** (`package.json` + i18n string) and already
   out of sync.
 - **Crisis wording stored inline** in `data/crisis-protocol.ts`; if i18n for
@@ -191,30 +261,48 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
 
 ## Important Decisions
 
-- Rule-based matching only this phase — no LLM/RAG (AGENTS.md §2).
-- Safety check precedes general matching, always; `physical-danger` (Case 2)
-  precedence over `psychological-distress` (Case 1) on overlap.
+- Rule-based matching first, LLM only as a low-confidence understanding layer
+  (`PLANLLM` / `docs/architecture-hybrid.md`); the LLM proposes ids, the
+  deterministic layer serves text — validated answers only via `qaAnswer()`.
+- Safety check precedes everything, always; `physical-danger` (Case 2)
+  precedence over `psychological-distress` (Case 1) on overlap; the classifier
+  is explicitly instructed to decline danger messages (deterministic gate
+  only).
+- Confidence gate: one generic keyword (no strong term) → hybrid instead of a
+  possibly-wrong static answer; discriminative terms (`STRONG_TERMS`) stay
+  static.
+- Every LLM failure (timeout, 429, auth, network, bad JSON, breaker) degrades
+  to today's fallback — never an error text to the user; per-client rate
+  limits only gate the LLM branch (denied = fallback, no 429, no new copy).
+- Session context stores routing facts only (profile, last QA ids, pending
+  clarification) — never message content or any PII (AGENTS.md §10); metadata
+  logs (`emc-meta`) exclude message text.
+- Rule-based matching + flows for the deterministic surface only — no LLM
+  inside flows, no RAG beyond embeddings (no vector DB; following AGENTS.md §2
+  for this phase).
 - Static typed knowledge base shipped in the repo instead of a database;
   answers returned verbatim via `qaAnswer()` (never rephrased in flows).
 - Flows are opt-in conversations started by explicit intent phrasings, never by
   QA keyword overlap — the general matcher keeps answering validated content.
-- Session state stores routing data only (flowId/step/data) — never message
-  content or any PII (AGENTS.md §10).
 - Session ids are client-generated (`crypto.randomUUID()`), sent in the POST
   body; store is in-memory with TTL/eviction.
-- `switchTo` links flow modules together (emotion-weather → breathing/grounding,
-  technical → juridique/psychologique, psychologique → emotion-weather);
-  `handleFlow` resolves chains and computes the next persistable state.
 - Single Next.js codebase (Route Handlers as backend) over a decoupled
   SPA + Express split; class-based dark mode without a library.
 - `t()` dictionary indirection for all copy from day one (Arabic-ready).
 
 ## Next Recommended Tasks
 
-1. **Deploy to Vercel** to close the Jalon 3 requirement (AGENTS.md §14).
-2. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
+1. **Deploy to Vercel** to close the Jalon 3 requirement (AGENTS.md §14) —
+   hybrid layer degrades gracefully without keys (documented above).
+2. **Live verification run with a provider key** (internship machine): set
+   `GEMINI_API_KEY` in `.env`, run `npm run index-embeddings`, then `npm run
+   eval` to read the before/after table; record call counts and the artifact in
+   this file.
+3. **Get `clarifyPrompt`  sign-off** from the encadrante
+   (TODO(encadrante) in `lib/i18n.ts`).
+4. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
    AppShell session wiring (`@testing-library/react` already installed).
-3. **Align the version string** (`lib/i18n.ts` vs `package.json`).
-4. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
+5. **Align the version string** (`lib/i18n.ts` vs `package.json`).
+6. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
    needs it.
-5. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).
+7. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).

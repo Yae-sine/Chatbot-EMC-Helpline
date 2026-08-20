@@ -6,6 +6,9 @@ export interface ChatMessage {
   timestamp?: string;
   options?: string[];
   flowId?: string;
+  mode?: "static" | "llm" | "fallback";
+  matchedId?: string | null;
+  confidence?: number;
 }
 
 export interface ChatResponse {
@@ -13,4 +16,7 @@ export interface ChatResponse {
   isCrisis: boolean;
   options?: string[];
   flowId?: string;
+  mode?: "static" | "llm" | "fallback";
+  matchedId?: string | null;
+  confidence?: number;
 }

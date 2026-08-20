@@ -1,4 +1,4 @@
-import type { FlowOutput, FlowState } from "@/types/flow";
+import type { FlowId, FlowOutput, FlowState } from "@/types/flow";
 import { emotionWeatherFlow } from "./emotion-weather";
 import { groundingFlow } from "./grounding";
 import { breathingFlow } from "./breathing";
@@ -35,6 +35,13 @@ function runFlow(state: FlowState, rawMessage: string): FlowOutput {
 export interface FlowResult {
   output: FlowOutput;
   nextState: FlowState | null;
+}
+
+// Launches a flow from its start step (explicit intent or LLM route).
+// Equivalent to handleFlow with data:{} — identical behavior, shared by the
+// route's intent block and the hybrid router.
+export function launchFlow(flowId: FlowId): FlowResult {
+  return handleFlow({ flowId, step: "start", data: {} }, "");
 }
 
 // Runs the flow handler, following switchTo links (e.g. emotion-weather ->
