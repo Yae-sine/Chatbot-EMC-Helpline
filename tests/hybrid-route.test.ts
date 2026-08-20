@@ -162,6 +162,32 @@ describe("provider-less route (no LLM keys)", () => {
     expect(response.text).toContain("2511");
   });
 
+  it("a pending clarification never swallows distress or an explicit request", async () => {
+    const distress = "clarify-vs-distress";
+    setContext(distress, setPendingClarify(emptyContext(), ["3.1", "3.2"]));
+    const emotional = await post({ message: "je n'en peux plus", sessionId: distress });
+    expect(emotional.flowId).toBe("emotion-weather");
+    expect(getContext(distress)?.pendingClarify).toBeNull();
+
+    const intent = "clarify-vs-intent";
+    setContext(intent, setPendingClarify(emptyContext(), ["3.1", "3.2"]));
+    const launched = await post({
+      message: "je veux faire un exercice de respiration",
+      sessionId: intent,
+    });
+    expect(launched.flowId).toBe("breathing-4-2-6");
+    expect(getContext(intent)?.pendingClarify).toBeNull();
+  });
+
+  it("drops an expired clarification instead of keeping it in the context", async () => {
+    const sessionId = "clarify-expired";
+    const expired = setPendingClarify(emptyContext(), ["3.1", "3.2"], -1000);
+    setContext(sessionId, expired);
+    const response = await post({ message: "C'est quoi le doxing ?", sessionId });
+    expect(response.matchedId).toBe("6.10");
+    expect(getContext(sessionId)?.pendingClarify).toBeNull();
+  });
+
   it("learns the parent profile from the guided tree (Phase 5)", async () => {
     const sessionId = "phase5-guided-profile";
     const launch = await post({ message: "Je ne sais pas quoi demander", sessionId });

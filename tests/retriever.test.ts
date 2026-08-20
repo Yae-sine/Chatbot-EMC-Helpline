@@ -26,6 +26,7 @@ function noKeysCfg(overrides: Partial<Config> = {}): Config {
     llmTimeoutMs: 5000,
     llmMaxRetries: 1,
     llmSmalltalk: true,
+    trustedProxyHops: 1,
     rateLimitPerMinute: 10,
     rateLimitPerDay: 200,
     messageCharLimit: 500,
@@ -141,6 +142,30 @@ describe("createRetriever", () => {
     const top = await retriever.retrieve("mon adresse a été publiée en ligne", { topK: 5 });
     expect(top[0].id).toBe("6.10");
     expect(top[0].score).toBeGreaterThan(0.5);
+  });
+
+  it("embeds with Gemini even when LLM_PROVIDER puts another provider first", async () => {
+    // Only Gemini implements embedTexts, and the artifact is a
+    // gemini-embedding-001 one. Taking providers[0] blindly killed semantic
+    // retrieval for LLM_PROVIDER=groq — silently, since it degrades lexical.
+    const queryVector = makeVector(3);
+    __setEmbeddingsSourceForTest(embeddingsFile(queryVector));
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        return new Response(JSON.stringify({ embeddings: [{ values: queryVector }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    const cfg = noKeysCfg({ llmProvider: "groq", geminiApiKey: "k", groqApiKey: "g" });
+    const retriever = createRetriever(cfg, SEED_ENTRIES);
+    const top = await retriever.retrieve("mon adresse a été publiée en ligne", { topK: 5 });
+    expect(top[0].id).toBe("6.10");
+    expect(urls.every((url) => url.includes("generativelanguage"))).toBe(true);
   });
 
   it("adds the profile bonus only for entries listing that profile", async () => {

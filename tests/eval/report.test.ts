@@ -54,6 +54,31 @@ describe.skipIf(!LIVE)("eval hybrid report (live, keyed)", () => {
       `| mode split | static ${before.modes.static} | static ${after.modes.static} · llm ${after.modes.llm} · fallback ${after.modes.fallback} |`,
       `| LLM calls | 0 | ${meters.totalCalls} (ok ${meters.ok}, fail ${meters.fail}) · p50 ${meters.p50} ms / p95 ${meters.p95} ms |`,
       "",
+      // A bare ok/fail count cannot say WHICH provider failed and WHY, nor
+      // what the model decided when it answered — without this, a run where
+      // the primary provider times out under burst and the chain silently
+      // carries the load looks identical to a broken hybrid layer.
+      "### Provider calls (why they failed)",
+      "",
+      "| provider | ok | fail | kinds |",
+      "| --- | --- | --- | --- |",
+      ...Object.entries(meters.byProvider).map(([provider, stats]) => {
+        const kinds = Object.entries(stats?.kinds ?? {})
+          .map(([kind, count]) => `${kind} ${count}`)
+          .join(", ");
+        return `| ${provider} | ${stats?.ok ?? 0} | ${stats?.fail ?? 0} | ${kinds || "–"} |`;
+      }),
+      "",
+      "### Classifier decisions",
+      "",
+      "_The corpus is fired back-to-back, so a live run also measures the free",
+      "tiers' burst limits: `breaker-open` counts cases where no provider was",
+      "called at all because every circuit breaker was open._",
+      "",
+      Object.entries(meters.decisions)
+        .map(([decision, count]) => `${decision}: ${count}`)
+        .join(" · ") || "(no LLM decision recorded)",
+      "",
     ].join("\n");
     console.log(table);
   });

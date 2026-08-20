@@ -21,7 +21,7 @@ import {
   hasEmotionalSignal,
   isEmotionalStatement,
 } from "@/lib/chatbot/emotion";
-import { createRateLimiter } from "@/lib/chatbot/rate-limit";
+import { createRateLimiter, rateLimitKey } from "@/lib/chatbot/rate-limit";
 import { loadConfig } from "@/lib/config/env";
 import { buildProviderChain } from "@/lib/llm/client";
 import { createRetriever } from "@/lib/rag/retriever";
@@ -59,25 +59,6 @@ function isFarewell(message: string): boolean {
   return FAREWELL_PHRASES.some((phrase) => normalized === phrase);
 }
 
-// Rate-limit identity for the LLM budget. Client-supplied values must never
-// be trusted blindly: the leftmost x-forwarded-for entry is whatever the
-// caller typed, so prefer the single-IP headers a proxy sets itself, then the
-// LAST forwarded hop (the address our own proxy observed). With no proxy
-// header at all, fall back to the session so one visitor cannot drain the
-// whole budget for everybody.
-function rateLimitKey(request: Request, sessionId: string | null): string {
-  const direct =
-    request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip");
-  if (direct && direct.trim() !== "") return `ip:${direct.trim()}`;
-  const hops = (request.headers.get("x-forwarded-for") ?? "")
-    .split(",")
-    .map((hop) => hop.trim())
-    .filter((hop) => hop !== "");
-  const observed = hops[hops.length - 1];
-  if (observed !== undefined) return `ip:${observed}`;
-  return sessionId !== null ? `session:${sessionId}` : "anonymous";
-}
-
 // An answer to a message that also carries emotional weight keeps its
 // validated text and only gains the existing support pill — the same string
 // detectIntent maps to the météo des émotions, so tapping it launches the
@@ -111,7 +92,7 @@ async function resolveAnswer(
     });
   }
 
-  if (!rateLimiter.allow(rateLimitKey(request, sessionId))) {
+  if (!rateLimiter.allow(rateLimitKey(request, sessionId, cfg.trustedProxyHops))) {
     logMeta(cfg, { mode: "fallback", latencyMs: Date.now() - startedAt });
     return NextResponse.json({ text: fallbackMessage("fr"), isCrisis: false, mode: "fallback" });
   }
@@ -192,7 +173,12 @@ export async function POST(request: Request) {
   if (sessionId) {
     const ctx = getContext(sessionId);
     const pending = ctx?.pendingClarify ?? null;
-    if (pending && pending.expiresAt > Date.now()) {
+    if (pending && pending.expiresAt <= Date.now()) {
+      // Expired: clear it so no later reader (summarize, cache key) sees a
+      // phantom question. The session TTL is sliding, so it would otherwise
+      // survive for as long as the conversation stays alive.
+      setContext(sessionId, setPendingClarify(ctx ?? emptyContext(), null));
+    } else if (pending) {
       const base = ctx ?? emptyContext();
       const resolved = resolvePendingClarify(message, pending.ids);
       if (resolved !== null) {
@@ -216,6 +202,11 @@ export async function POST(request: Request) {
             matchedId: resolved,
           });
         }
+      } else if (detectIntent(message) !== null || isEmotionalStatement(message)) {
+        // An explicit parcours/exercise request, or a statement of distress,
+        // outranks the pending question: abandon it and let the pipeline
+        // below answer this message on its own terms.
+        setContext(sessionId, setPendingClarify(base, null));
       } else {
         const stale = pending.stale + 1;
         if (stale >= 2) {

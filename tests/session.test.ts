@@ -21,6 +21,21 @@ describe("session store capacity", () => {
     expect(getContext("flood-699")?.turnCount).toBe(1);
   });
 
+  it("evicts the least-recently-written session, not the first created", () => {
+    // A user who keeps talking must not be evicted because their session was
+    // created early (Map.set on an existing key does not reorder it).
+    setContext("lru-old", noteTurn(emptyContext()));
+    for (let i = 0; i < 400; i += 1) {
+      setContext(`lru-filler-${i}`, noteTurn(emptyContext()));
+      if (i % 50 === 0) setContext("lru-old", noteTurn(emptyContext())); // stays active
+    }
+    for (let i = 400; i < 700; i += 1) {
+      setContext(`lru-filler-${i}`, noteTurn(emptyContext()));
+      setContext("lru-old", noteTurn(emptyContext()));
+    }
+    expect(getContext("lru-old")).not.toBeNull();
+  });
+
   it("updating an existing session does not consume a new slot", () => {
     setContext("stable", emptyContext());
     for (let i = 0; i < 50; i += 1) {

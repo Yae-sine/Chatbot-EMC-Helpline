@@ -19,6 +19,8 @@ export interface Config {
   llmTimeoutMs: number; // 6000
   llmMaxRetries: number; // 1
   llmSmalltalk: boolean; // true
+  /** hops your infrastructure appends to x-forwarded-for (default 1) */
+  trustedProxyHops: number; // 1
   rateLimitPerMinute: number; // 10
   rateLimitPerDay: number; // 200
   messageCharLimit: number; // 500
@@ -93,6 +95,7 @@ export function loadConfig(
     llmTimeoutMs: intFromEnv(env, "LLM_TIMEOUT_MS", 6000),
     llmMaxRetries: intFromEnv(env, "LLM_MAX_RETRIES", 1),
     llmSmalltalk: boolFromEnv(env, "LLM_SMALLTALK", true),
+    trustedProxyHops: Math.max(1, intFromEnv(env, "TRUSTED_PROXY_HOPS", 1)),
     rateLimitPerMinute: intFromEnv(env, "RATE_LIMIT_PER_MINUTE", 10),
     rateLimitPerDay: intFromEnv(env, "RATE_LIMIT_PER_DAY", 200),
     messageCharLimit: intFromEnv(env, "MESSAGE_CHAR_LIMIT", 500),

@@ -8,6 +8,31 @@ export interface RateLimiter {
   allow(key: string, now?: number): boolean;
 }
 
+/**
+ * Rate-limit identity for one request. Client-supplied values are never
+ * trusted blindly: the leftmost `x-forwarded-for` entry is whatever the
+ * caller typed, so prefer the single-IP headers a proxy sets itself, then the
+ * hop our own infrastructure appended (`trustedProxyHops` = 1 for a single
+ * platform proxy, 2 when a CDN sits in front of it). Too few hops for that
+ * depth ⇒ do not guess. With no usable header, fall back to the session so
+ * one visitor cannot drain the whole LLM budget for everybody.
+ */
+export function rateLimitKey(
+  request: Request,
+  sessionId: string | null,
+  trustedProxyHops = 1,
+): string {
+  const direct = request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip");
+  if (direct && direct.trim() !== "") return `ip:${direct.trim()}`;
+  const hops = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop !== "");
+  const observed = hops[hops.length - Math.max(1, trustedProxyHops)];
+  if (observed !== undefined) return `ip:${observed}`;
+  return sessionId !== null ? `session:${sessionId}` : "anonymous";
+}
+
 /** Distinct keys tracked per window map before a sweep runs. */
 const MAX_KEYS = 1000;
 

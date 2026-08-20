@@ -229,7 +229,7 @@ export const EVAL_CORPUS: EvalCase[] = [
 
   // ── informal / mobile phrasing / Arabic (plan §4.3) ─────────────────────────
 
-  c("inf-01", "informal", "jsui harcelé sur insta, aidez-moi svp", qa("7.2"), false, "informal; intended: que faire si victime"),
+  c("inf-01", "informal", "jsui harcelé sur insta, aidez-moi svp", qa("7.2"), false, "informal; intended: que faire si victime. HYBRID-REQUIRED since the STRONG_TERMS audit dropped « aidez moi »: it used to serve 7.2 statically for ANY message containing it, including « aidez-moi, ma fille reçoit des images d'abus sexuel » (3.3)"),
   c("inf-02", "informal", "mon ex a publié mes fotos sans mon ok", qa("6.17"), false, "informal + typos"),
   c("inf-03", "informal", "ce gars me stalk depuis des mois", qa("6.7"), false, "franglais → stalking"),
   c("inf-04", "informal", "ils ont monté un groupe pour se moquer de moi", qa("6.23"), false, "groupe anti-personne by description"),

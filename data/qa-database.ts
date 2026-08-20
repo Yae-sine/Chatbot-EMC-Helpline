@@ -1,8 +1,8 @@
 import type { QAEntry } from "@/types/qa";
 
 // Sources of truth:
-//  - docs/qa-source.md (encadrante-validated, extracted from
-//    Bases_questions_réponses-Version2.pdf) — enriches entries 2.x–7.x.
+//  - docs/qa-source.md (encadrante-validated Q&A base, Jalon 1 deliverable) —
+//    enriches entries 2.x–7.x.
 //  - Ressources Chatbot.docx.pdf (also provided/validated by the team) —
 //    enriches presentation, signalement, juridique, psychologique,
 //    cyberviolence forms and prevention sections (ids 2.3, 3.7–3.9, 4.6–4.14,

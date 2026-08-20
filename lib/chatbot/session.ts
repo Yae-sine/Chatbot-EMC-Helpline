@@ -28,8 +28,11 @@ function purgeExpired(): void {
 // (setContext runs on every request that carries a sessionId).
 function writeEntry(sessionId: string, entry: SessionEntry): void {
   purgeExpired();
-  // Only a genuinely new session needs room; updating one reuses its slot.
-  if (!sessions.has(sessionId)) {
+  // Delete before set so the key moves to the end of the Map: insertion order
+  // then means recency, and eviction takes the least-recently-written session
+  // instead of the first one ever created (a busy user was evictable before).
+  const existed = sessions.delete(sessionId);
+  if (!existed) {
     while (sessions.size >= MAX_SESSIONS) {
       const oldestId = sessions.keys().next().value;
       if (oldestId === undefined) break;

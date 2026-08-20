@@ -83,6 +83,12 @@ const PROFILE_BONUS = 0.15;
 
 export function createRetriever(cfg: Config, entries: QAEntry[]): Retriever {
   const providers = buildProviderChain(cfg); // shared module-level circuit breaker
+  // Only Gemini implements embedTexts (Groq/OpenRouter throw not_available),
+  // and data/embeddings.json is a gemini-embedding-001 artifact, so a vector
+  // from any other provider would not even share its dimension. Picking
+  // providers[0] blindly killed semantic retrieval whenever LLM_PROVIDER put
+  // another provider first — silently, since the failure degrades to lexical.
+  const embedder = providers.find((provider) => provider.id === "gemini") ?? null;
   const vectorById = () => {
     const file = loadEmbeddings();
     return file ? new Map(file.entries.map((row) => [row.id, row.vector])) : null;
@@ -95,9 +101,9 @@ export function createRetriever(cfg: Config, entries: QAEntry[]): Retriever {
       const vectors = vectorById();
 
       let queryVector: number[] | null = null;
-      if (vectors && providers.length > 0) {
+      if (vectors && embedder !== null) {
         try {
-          const embedded = await providers[0].embedTexts([rawMessage]);
+          const embedded = await embedder.embedTexts([rawMessage]);
           queryVector = embedded[0] ?? null;
         } catch {
           // embedding failure ⇒ lexical-only this turn, never a block

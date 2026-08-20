@@ -239,7 +239,9 @@ content.
   - `offtopic` → fallback copy.
   Every provider failure, invalid payload or unknown id degrades to the
   fallback — never an error/empty text.
-- **Retrieval** (`lib/rag/retriever.ts`): lexical-only when
+- **Retrieval** (`lib/rag/retriever.ts`): query embeddings always go through
+  the Gemini provider (the only one implementing `embedTexts`, and the
+  artifact's model), whatever `LLM_PROVIDER` puts first; lexical-only when
   `data/embeddings.json` is absent; hybrid `0.6×semantic + 0.4×lexic + 0.15
   (profile ∈ entry.profiles)` when it exists and a provider key is set; a
   failed query embedding degrades to lexical for that turn.
@@ -258,9 +260,11 @@ content.
 - **The fallback** (`lib/chatbot/fallback.ts`): returns the `fallback` i18n string
   (invites rephrasing + lists the five `parcours` themes).
 - **Security & privacy:** per-client LLM rate gate (minute + day buckets,
-  bounded maps; the client identity is `x-real-ip`/`cf-connecting-ip`, else the
-  LAST `x-forwarded-for` hop — the leftmost entry is caller-supplied and
-  spoofable — else the session id; denied = fallback, never a 429, no new copy);
+  bounded maps; `rateLimitKey` in `lib/chatbot/rate-limit.ts` identifies the
+  client by `x-real-ip`/`cf-connecting-ip`, else by counting back
+  `TRUSTED_PROXY_HOPS` entries from the right of `x-forwarded-for` — the
+  leftmost entries are caller-supplied and spoofable — else by session id;
+  denied = fallback, never a 429, no new copy);
   metadata logs (`emc-meta`) carry mode/matchedId/latency only — never raw
   user messages (AGENTS.md §10); no persistence of conversations.
 

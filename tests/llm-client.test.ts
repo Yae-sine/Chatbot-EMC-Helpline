@@ -14,6 +14,7 @@ import {
   ProviderError,
   resetCircuitBreakers,
 } from "@/lib/llm/client";
+import { metersSnapshot, resetMeters } from "@/lib/chatbot/meters";
 
 const GEMINI_OK = JSON.stringify({
   candidates: [{ content: { parts: [{ text: '{"route":"qa","qaIds":["3.4"]}' }] } }],
@@ -36,6 +37,7 @@ function baseCfg(overrides: Partial<Config> = {}): Config {
     llmTimeoutMs: 5000,
     llmMaxRetries: 1,
     llmSmalltalk: true,
+    trustedProxyHops: 1,
     rateLimitPerMinute: 10,
     rateLimitPerDay: 200,
     messageCharLimit: 500,
@@ -221,6 +223,77 @@ describe("completeJSON (gemini)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the timeout armed while the body is read", async () => {
+    // A provider that sends headers and then stalls the stream must still hit
+    // LLM_TIMEOUT_MS: clearing the timer once headers arrive left the read
+    // unbounded, and the deterministic path would wait on it.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => ({
+        ok: true,
+        status: 200,
+        // Mirrors a real aborted body read: the promise rejects on abort.
+        text: () =>
+          new Promise<string>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+            });
+          }),
+      })),
+    );
+    vi.useFakeTimers();
+    const cfg = baseCfg({ llmTimeoutMs: 4000, llmMaxRetries: 0 });
+    const promise = completeJSON({ prompt: "x" }, buildProviderChain(cfg), cfg);
+    const expectation = expect(promise).rejects.toMatchObject({ kind: "timeout" });
+    await vi.advanceTimersByTimeAsync(4100);
+    await expectation;
+  });
+
+  it("reads the answer part when a reasoning model emits a thought first", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(
+          200,
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    { text: "réflexion interne…", thought: true },
+                    { text: '{"route":"offtopic","qaIds":[]}' },
+                  ],
+                },
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+    const cfg = baseCfg();
+    const result = await completeJSON({ prompt: "x" }, buildProviderChain(cfg), cfg);
+    expect(result.json).toMatchObject({ route: "offtopic" });
+  });
+
+  it("meters the failure kind per provider", async () => {
+    resetMeters();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("generativelanguage")
+          ? jsonResponse(429, "{}")
+          : jsonResponse(200, GROQ_OK),
+      ),
+    );
+    const cfg = baseCfg({ groqApiKey: "grok", llmMaxRetries: 0 });
+    const result = await completeJSON({ prompt: "x" }, buildProviderChain(cfg), cfg);
+    expect(result.provider).toBe("groq");
+    const meters = metersSnapshot();
+    expect(meters.byProvider.gemini?.kinds.rate_limit).toBe(1);
+    expect(meters.byProvider.groq?.ok).toBe(1);
+    resetMeters();
+  });
+
   it("maps an abort to timeout and never retries the same provider", async () => {
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
@@ -293,9 +366,11 @@ describe("completeJSON (gemini)", () => {
     }
     expect(fetchMock).toHaveBeenCalledTimes(3);
 
-    // Breaker open: no provider call at all.
+    // Breaker open: no provider call at all — reported as "not_available",
+    // which is what tells the router nobody was even asked (the router counts
+    // it as breaker-open rather than a provider failure).
     await expect(completeJSON({ prompt: "x" }, buildProviderChain(cfg), cfg)).rejects.toMatchObject({
-      kind: "network",
+      kind: "not_available",
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
 

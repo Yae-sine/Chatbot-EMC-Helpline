@@ -1,7 +1,7 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 224
+Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 242
 passed (+ 2 skipped live-only), `npm run eval` green (172 cases / 14
 categories), `build` passing, and the hybrid + emotional paths verified live
 against the three providers.
@@ -20,6 +20,80 @@ session context, per-client rate limits, classifier-result caching and a
 golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### Review remediation + provider observability (2026-08-20)
+- [x] **Retrieval used the wrong provider for embeddings**
+      (`lib/rag/retriever.ts`): the query was embedded with `providers[0]`,
+      but only Gemini implements `embedTexts` and `data/embeddings.json` is a
+      `gemini-embedding-001` artifact. With `LLM_PROVIDER=groq` (or
+      openrouter) semantic retrieval was silently dead — the failure degrades
+      to lexical, so nothing logged it, and the ≥0.75 degraded-serve path
+      became unreachable (lexical alone caps at 0.4). The retriever now picks
+      the Gemini provider explicitly, like `scripts/index-embeddings.ts`
+- [x] **The request timeout did not cover the response body**
+      (`lib/llm/client.ts`): `clearTimeout` ran as soon as headers arrived, so
+      a provider that stalled the stream ran unbounded past
+      `LLM_TIMEOUT_MS`. The abort timer now stays armed through
+      `response.text()`
+- [x] **Reasoning models could not be read** (`readGeminiText`): only
+      `parts[0].text` was inspected, so a thought part in front of the answer
+      produced `bad_json`. It now scans for the first non-thought text part
+- [x] **Unusable payloads were metered as successes**: `completeJSON` accepts
+      an optional `validate` callback (the classifier passes its schema
+      check), so a provider answering well-formed-but-invalid JSON is metered
+      as a failure with kind `invalid_payload` and feeds the circuit breaker
+      instead of being re-probed on every request
+- [x] **Session eviction is now true LRU** (`lib/chatbot/session.ts`): writes
+      delete-then-set so insertion order means recency; an active session is
+      no longer evicted just because it was created first
+- [x] **Smalltalk was grounded against the user's own message**
+      (`lib/router/route.ts`): a visitor who wrote « regarde
+      https://evil.example » could have that link echoed back and pass
+      `isGrounded`. Grounding now uses validated copy only (QA answers +
+      crisis messages)
+- [x] **Expired clarifications are cleared** and **a pending clarification no
+      longer swallows distress or an explicit request** (`app/api/chat/route.ts`):
+      « je n'en peux plus » opens the météo des émotions and an exercise
+      request launches it, instead of both getting the disambiguation prompt
+      again
+- [x] **Rate-limit identity is configurable** (`TRUSTED_PROXY_HOPS`, default
+      1): `rateLimitKey` moved to `lib/chatbot/rate-limit.ts` (a Next route
+      file cannot export helpers) and counts back the configured number of
+      trusted hops, so a CDN-in-front deployment does not collapse every
+      visitor into one budget
+- [x] **`STRONG_TERMS` audit** (`lib/chatbot/matcher.ts`): « aidez moi »
+      removed — a keyword of 7.2 only, so any message containing it was served
+      the generic four-reflexes sheet at full confidence (« aidez-moi, ma
+      fille reçoit des images d'abus sexuel » never reached 3.3). The rest of
+      the list was re-checked against its own contract and kept
+- [x] **Observability** (`lib/chatbot/meters.ts`): calls now carry a failure
+      kind, the snapshot exposes a per-provider ok/fail/kind breakdown and a
+      classifier decision distribution (`qa`/`clarify`/`flow`/`offtopic`/
+      `smalltalk`/`degraded-serve`/`cache-hit`/`classifier-failed`), and
+      `npm run eval` prints both. The previous live run reported 27/54 calls
+      failing with no way to see which provider or why
+- [x] **Tests**: 224 → 242, incl. new `tests/classifier.test.ts` and cases for
+      the stalled body, thought-part responses, per-provider kinds, the
+      embedder choice, LRU eviction, `rateLimitKey` hop counting, grounding
+      against validated copy, and clarification precedence
+
+### Live measurement, 2026-08-20 (172-case corpus, keys configured)
+Recorded from `npm run eval` with the new breakdown — the numbers the previous
+run could not explain (it reported only "27/54 calls failed"):
+- provider calls 38 (22 ok / 16 fail): gemini 14 ok / 5 fail (rate_limit 4,
+  timeout 1) · groq 8 ok / 7 fail (**invalid_payload 4**, rate_limit 2,
+  http 1) · openrouter 0 ok / 4 fail (rate_limit 4)
+- classifier decisions: 68 failed, qa 8, offtopic 10, clarify 2, smalltalk 2
+- **Reading it:** 68 failures against 38 calls means most failures made no call
+  at all — every circuit breaker was open. The harness fires the corpus
+  back-to-back, so a live run measures the free tiers' burst limits as much as
+  the hybrid layer; `breaker-open` is now counted separately from a real
+  provider failure so the two cannot be confused again. Targeted live checks
+  (a handful of messages, human pace) answer correctly in 1–4 s.
+- **Actionable:** `openai/gpt-oss-120b` returned schema-invalid classifier
+  payloads on 4 of its 12 answered calls, and `openrouter/free` never answered
+  under burst. Worth re-testing `groq/compound-mini` (valid payloads in the
+  earlier smoke run) before trusting Groq as the second link.
 
 ### Emotional detection → météo des émotions (2026-08-20)
 - [x] **Deterministic gate** (`lib/chatbot/emotion.ts`, new): first-person
@@ -319,11 +393,11 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   UX note.
 - **In-memory sessions die on server restart/scale-out** (deployment caveat for
   long-running flows; harmless for this phase — no persistence per §10).
-- **Hybrid layer needs keys to engage.** Without `GEMINI_API_KEY` (or
-  Groq/OpenRouter) the LLM path is off: low-confidence messages get today's
-  fallback (single-generic-keyword cases like "Qu'est-ce que le
-  cyberharcèlement ?" are documented HYBRID-REQUIRED corpus gaps). Set one key
-  in `.env` + `npm run index-embeddings` to regenerate `data/embeddings.json`.
+- **The CI suite runs without provider keys**, so `ci:true` corpus cases only
+  cover the deterministic layer; the HYBRID-REQUIRED cases (single generic
+  keyword, e.g. "Qu'est-ce que le cyberharcèlement ?") are asserted by the
+  live `npm run eval` instead. Regenerate `data/embeddings.json` with
+  `npm run index-embeddings` after knowledge-base edits.
 - **Provider model ids drift.** Verified 2026-08-20: Groq retired
   `llama-3.3-70b-versatile` (404) and `gemini-3.5-flash-lite`, while valid,
   answered in 15–86 s on this key. Check the provider's live model list (and
@@ -387,9 +461,14 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
    `GEMINI_API_KEY` in `.env`, run `npm run index-embeddings`, then `npm run
    eval` to read the before/after table; record call counts and the artifact in
    this file.
-3. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
+3. **Pace the eval harness** (or run it in chunks) so the live before/after
+   table reflects the hybrid layer instead of free-tier burst limits — today
+   most live cases end in `breaker-open`.
+4. **Re-test the Groq model choice**: `openai/gpt-oss-120b` produced
+   `invalid_payload` on a third of its answered classifier calls.
+5. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
    AppShell session wiring (`@testing-library/react` already installed).
-4. **Align the version string** (`lib/i18n.ts` vs `package.json`).
-5. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
+6. **Align the version string** (`lib/i18n.ts` vs `package.json`).
+7. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
    needs it.
-6. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).
+8. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).

@@ -88,6 +88,7 @@ export function resetCircuitBreakers(): void {
   circuits.clear();
 }
 
+
 // ── HTTP helpers ────────────────────────────────────────────────────────────
 
 async function fetchText(
@@ -98,10 +99,24 @@ async function fetchText(
 ): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  let response: Response;
+  // The timer must stay armed until the BODY is read: a provider that sends
+  // headers and then stalls the stream would otherwise run unbounded and the
+  // deterministic path would wait on it.
   try {
-    response = await fetch(url, { ...init, signal: controller.signal });
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) {
+      const status = response.status;
+      const kind =
+        status === 401 || status === 403
+          ? "auth"
+          : status === 429
+            ? "rate_limit"
+            : "http";
+      throw new ProviderError(kind, provider, status, `HTTP ${status}`);
+    }
+    return await response.text();
   } catch (error) {
+    if (error instanceof ProviderError) throw error;
     const isAbort =
       typeof error === "object" &&
       error !== null &&
@@ -114,17 +129,6 @@ async function fetchText(
   } finally {
     clearTimeout(timer);
   }
-  if (!response.ok) {
-    const status = response.status;
-    const kind =
-      status === 401 || status === 403
-        ? "auth"
-        : status === 429
-          ? "rate_limit"
-          : "http";
-    throw new ProviderError(kind, provider, status, `HTTP ${status}`);
-  }
-  return response.text();
 }
 
 function sleep(ms: number): Promise<void> {
@@ -160,14 +164,14 @@ function readGeminiText(data: unknown, provider: ProviderId): string {
       "parts" in candidate.content &&
       Array.isArray(candidate.content.parts)
     ) {
-      const part = candidate.content.parts[0] as unknown;
-      if (
-        typeof part === "object" &&
-        part !== null &&
-        "text" in part &&
-        typeof part.text === "string"
-      ) {
-        return part.text;
+      // Reasoning-capable models emit a thought part before the answer, so
+      // take the first part that actually carries text (never a thought).
+      for (const entry of candidate.content.parts) {
+        const part = entry as { text?: unknown; thought?: unknown };
+        if (part.thought === true) continue;
+        if (typeof part.text === "string" && part.text.trim() !== "") {
+          return part.text;
+        }
       }
     }
   }
@@ -371,7 +375,8 @@ export interface CompletionResult {
  * - per-provider: 429 → wait 1 s and retry once (cap llmMaxRetries);
  * - auth/timeout/http/network → next provider in the chain, remembering the
  *   last error (a provider is never re-called after auth);
- * - invalid JSON → retry once at temperature 0, then ProviderError("bad_json");
+ * - invalid JSON, or a payload the caller's `validate` rejects → retry once at
+ *   temperature 0, then ProviderError("bad_json");
  * - circuit breaker: 3 failures in 60 s open the breaker (half-open re-probe
  *   after the window); the chain never circles twice.
  */
@@ -379,6 +384,13 @@ export async function completeJSON(
   req: LLMRequest,
   chain: LLMProvider[],
   cfg: Config,
+  /**
+   * Schema check for the parsed payload. Passing it keeps metering honest: a
+   * provider that answers well-formed JSON the caller cannot use is a FAILING
+   * provider — metered as such and counted by the circuit breaker — instead of
+   * a success that gets re-probed on every request forever.
+   */
+  validate?: (json: unknown) => boolean,
 ): Promise<CompletionResult> {
   const maxRetries = Math.max(0, cfg.llmMaxRetries);
   let lastError: ProviderError | null = null;
@@ -402,7 +414,12 @@ export async function completeJSON(
           // Not a success: a provider that answers prose instead of JSON must
           // be metered as a failure and must feed the circuit breaker, or it
           // is re-probed on every request and reported as 100 % healthy.
-          recordCall({ provider: provider.id, ok: false, latencyMs: Date.now() - startedAt });
+          recordCall({
+            provider: provider.id,
+            ok: false,
+            latencyMs: Date.now() - startedAt,
+            kind: "bad_json",
+          });
           recordFailure(provider.id);
           const badJson = new ProviderError(
             "bad_json",
@@ -417,15 +434,41 @@ export async function completeJSON(
           lastError = badJson;
           break;
         }
+        if (validate !== undefined && !validate(json)) {
+          recordCall({
+            provider: provider.id,
+            ok: false,
+            latencyMs: Date.now() - startedAt,
+            kind: "invalid_payload",
+          });
+          recordFailure(provider.id);
+          const invalid = new ProviderError(
+            "bad_json",
+            provider.id,
+            undefined,
+            `payload failed validation (attempt ${jsonRetries})`,
+          );
+          if (jsonRetries < maxRetries) {
+            jsonRetries += 1;
+            continue; // retry once at temperature 0
+          }
+          lastError = invalid;
+          break;
+        }
         recordCall({ provider: provider.id, ok: true, latencyMs: Date.now() - startedAt });
         recordSuccess(provider.id);
         return { json, raw: response.text, provider: provider.id };
       } catch (error) {
-        recordCall({ provider: provider.id, ok: false, latencyMs: Date.now() - startedAt });
         const providerError =
           error instanceof ProviderError
             ? error
             : new ProviderError("network", provider.id, undefined, String(error));
+        recordCall({
+          provider: provider.id,
+          ok: false,
+          latencyMs: Date.now() - startedAt,
+          kind: providerError.kind,
+        });
         recordFailure(provider.id);
         if (providerError.kind === "rate_limit" && rateLimitRetries < maxRetries) {
           rateLimitRetries += 1;
@@ -442,8 +485,16 @@ export async function completeJSON(
     }
   }
 
+  // No provider failed here: every one was skipped (empty chain, or all
+  // breakers open). Reporting that as a network failure hid the difference
+  // between "the providers are failing" and "we stopped calling them".
   throw (
     lastError ??
-    new ProviderError("network", "gemini", undefined, "no provider available (chain empty or breaker open)")
+    new ProviderError(
+      "not_available",
+      "gemini",
+      undefined,
+      "no provider called (chain empty or every breaker open)",
+    )
   );
 }

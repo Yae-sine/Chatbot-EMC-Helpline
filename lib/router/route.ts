@@ -4,6 +4,7 @@
 // today's fallback; validated answers are served only via qaAnswer().
 
 import { QA_DATABASE } from "@/data/qa-database";
+import { CRISIS_PROTOCOL } from "@/data/crisis-protocol";
 import { t } from "@/lib/i18n";
 import { fallbackMessage } from "@/lib/chatbot/fallback";
 import { createTTLCache, fnv1a } from "@/lib/chatbot/cache";
@@ -19,8 +20,9 @@ import { checkFreeText, type ClassifierValidated } from "@/lib/chatbot/validator
 import { launchFlow } from "@/lib/chatbot/flows";
 import { qaAnswer } from "@/lib/chatbot/flows/helpers";
 import { classify } from "@/lib/llm/classifier";
+import { recordDecision } from "@/lib/chatbot/meters";
 import type { Config } from "@/lib/config/env";
-import type { LLMProvider } from "@/lib/llm/client";
+import { ProviderError, type LLMProvider } from "@/lib/llm/client";
 import type { Retriever } from "@/lib/rag/retriever";
 import type { FlowId, FlowState } from "@/types/flow";
 import { normalize } from "@/lib/chatbot/normalize";
@@ -59,6 +61,15 @@ export interface RouteOutcome {
   /** context to persist after this turn (undefined = unchanged) */
   contextDelta?: SessionContext;
 }
+
+// Model-authored smalltalk is grounded against VALIDATED copy — never against
+// the user's own message. Grounding on the input let a visitor who writes
+// « salut, regarde https://evil.example » have that link echoed back to them
+// and pass the check, since it occurred "verbatim in the context".
+const VALIDATED_TEXTS: string[] = [
+  ...QA_DATABASE.map((entry) => entry.answer),
+  ...CRISIS_PROTOCOL.map((crisisCase) => crisisCase.message),
+];
 
 function qaQuestion(id: string): string | null {
   return QA_DATABASE.find((entry) => entry.id === id)?.question ?? null;
@@ -102,6 +113,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
   // d. Cheap path: a clearly-matching top candidate is served with zero LLM
   //    calls (mode "llm" because it went through the hybrid layer decision).
   if (candidates.length > 0 && candidates[0].score >= DEGRADED_SERVE_THRESHOLD) {
+    recordDecision("degraded-serve");
     const id = candidates[0].id;
     let text: string;
     try {
@@ -125,6 +137,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
   const cached = key !== null ? classifierCache.get(key) : undefined;
   if (cached !== undefined) {
     classified = cached;
+    recordDecision("cache-hit");
   } else {
     try {
       const result = await classify(
@@ -134,11 +147,19 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
       );
       classified = result.result;
       if (key !== null) classifierCache.set(key, classified);
-    } catch {
+    } catch (error) {
+      // "breaker-open" means we never called anyone — a very different
+      // diagnosis from a provider that answered badly.
+      recordDecision(
+        error instanceof ProviderError && error.kind === "not_available"
+          ? "breaker-open"
+          : "classifier-failed",
+      );
       return fallback();
     }
   }
 
+  recordDecision(classified.route);
   switch (classified.route) {
     case "qa": {
       const id = classified.qaIds[0];
@@ -210,7 +231,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
       }
       const proposed = classified.smalltalk ?? "";
       // Free text is safe only when short, grounded and not a hidden crisis.
-      const verdict = checkFreeText(proposed, [rawMessage]);
+      const verdict = checkFreeText(proposed, VALIDATED_TEXTS);
       if (!verdict.ok) {
         if (verdict.reason === "crisis") {
           const crisis = detectCrisis(proposed);

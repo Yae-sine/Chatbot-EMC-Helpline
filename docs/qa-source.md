@@ -1,14 +1,15 @@
 # Q&A Knowledge Base — source of truth
 
-Canonical, encadrante-validated content for the EMC Helpline chatbot, extracted
-from `Bases_questions_réponses-Version2.pdf` (Aboulhaj Yassine, July 28, 2026).
-25 scenarios total. The crisis protocol (suicidal ideation / immediate danger)
+Canonical, encadrante-validated content for the EMC Helpline chatbot
+(Aboulhaj Yassine, July 28, 2026). This file IS the source of truth: the Q&A
+base it was compiled from is no longer kept in the repository, since its
+content lives here and in `data/qa-database.ts`. 25 scenarios total. The crisis protocol (suicidal ideation / immediate danger)
 is **not** duplicated here — it lives in `AGENTS.md` §6 and must be checked
 before any of the entries below.
 
 ## A note on `parcours` tagging
 
-The source PDF's annex maps five "parcours" (routing themes) to section
+The source annex maps five "parcours" (routing themes) to section
 ranges, but those ranges use an older section-numbering scheme from before
 Version 2 inserted a new section 2 ("Présentation de l'EMC"), so the numbers
 in the annex (e.g. "Parcours Technique (2.1 à 2.6)") no longer line up with
@@ -582,7 +583,8 @@ limitent les publicités inadaptées.
 In addition to the 25 Version-2 scenarios above, the chatbot embeds scenarios
 extracted **verbatim** from the companion document `Ressources Chatbot.docx.pdf`
 (sections II and IV of "Informations"). These live in `data/qa-database.ts`;
-answers and the leading keywords are copied from that PDF — nothing invented.
+answers and the leading keywords are copied verbatim from the validated
+source — nothing invented.
 
 ### 4.10 — Comment déposer une plainte auprès du parquet ?
 

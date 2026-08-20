@@ -188,23 +188,24 @@ animation, `LinkifiedText` (safe target="_blank"), light/dark theming,
 
 ## 7. RAG design for this codebase
 
-**Corpus size (observed):** 74 QA entries (~60–80K tokens max) + 2 PDFs
-(`Bases_questions_réponses-Version2.pdf`, `Ressources Chatbot.docx.pdf` —
-~1,700 extracted lines) + `docs/qa-source.md` (638 lines). ≈ 150–300 chunks
-total. Tiny — this shapes every decision below.
+**Corpus size (observed):** 74 QA entries (~60–80K tokens max) +
+`Ressources Chatbot.docx.pdf` (~670 extracted lines; the Q&A base PDF was
+removed from the repo — `docs/qa-source.md` carries that content) +
+`docs/qa-source.md` (638 lines). ≈ 150–300 chunks total. Tiny — this shapes
+every decision below.
 
 **Knowledge sources:**
 - `data/qa-database.ts` — one vector per entry (embed `question` +
   `sampleFormulations` + `keywords` + `tags`). **Stays the authoritative
   answer store: retrieval returns ids, not text.**
-- The two PDFs' extracted sections — supplementary *context* for routing only,
-  never as answer source.
+- The `Ressources Chatbot.docx.pdf` extracted sections — supplementary
+  *context* for routing only, never as answer source.
 - `docs/qa-source.md` — generator input.
 
 **What stays OUTSIDE the vector store:** crisis protocol (literal, code-level),
 flow scripts (code), i18n strings, UI copy.
 
-**Chunking:** one chunk per QA entry (already atomic, 2–6 sentences); PDFs →
+**Chunking:** one chunk per QA entry (already atomic, 2–6 sentences); the PDF →
 section-based chunks (~150–300 tokens) with title headers preserved; no overlap
 needed at this size. Metadata per chunk:
 `{ id, category, profiles, parcours, tags, source }` (enables filtering).

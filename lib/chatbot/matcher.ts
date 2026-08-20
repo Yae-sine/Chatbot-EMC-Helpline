@@ -11,6 +11,13 @@ const MIN_MATCHES = 1;
 // (drop a term when the KB stops containing it — no other code change).
 // "objectifs de l'emc" was deliberately dropped: no entry keyword contains it
 // (entries use "objectifs emc" / "objectifs du service").
+// "aidez moi" was dropped too: it is a keyword of 7.2 only, so ANY message
+// containing it was served the generic four-reflexes sheet at full
+// confidence — « aidez-moi, ma fille reçoit des images d'abus sexuel » never
+// reached 3.3. It is the definition of a phrase said by accident.
+// Audited alongside it and KEPT (each is a topic name, not a filler phrase):
+// "sante mentale", "consequences psychologiques", "temps d ecran",
+// "les quatre reflexes", "webcam", "porter plainte".
 export const STRONG_TERMS: string[] = [
   "espace maroc cyberconfiance", "qui sommes nous", "vous etes qui", "qu est ce que l emc",
   "mission de l emc", "numero vert", "2511", "evigilance", "reportcontent",
@@ -22,7 +29,7 @@ export const STRONG_TERMS: string[] = [
   "consequences psychologiques", "sante mentale", "cyberharcelement scolaire", "protocole scolaire",
   "revenge porn", "sextorsion", "doxing", "denigrement", "fraping", "outing", "flaming", "grooming",
   "stalking", "sexting", "webcam", "faux profil", "compte pirate", "mot de passe fort",
-  "controle parental", "temps d ecran", "les quatre reflexes", "aidez moi",
+  "controle parental", "temps d ecran", "les quatre reflexes",
   "kaspersky safe kids", "qwant junior", "youtube kids", "norton family",
 ];
 

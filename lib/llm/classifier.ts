@@ -96,6 +96,9 @@ export async function classify(
   const allowedIds = params.candidates.map((candidate) => candidate.id);
   let lastProvider: ProviderId = "gemini";
 
+  const isUsable = (json: unknown): boolean =>
+    parseAndValidateClassifier(json, allowedIds, FLOW_IDS_ALLOWED) !== null;
+
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const completion = await completeJSON(
@@ -105,13 +108,17 @@ export async function classify(
         { prompt, system: SYSTEM_PROMPT, maxOutputTokens: 768, temperature: 0 },
         providers,
         cfg,
+        // A schema violation must be metered against the provider that sent
+        // it, so the breaker can stop re-probing a model that never complies.
+        isUsable,
       );
       lastProvider = completion.provider;
       const result = parseAndValidateClassifier(completion.json, allowedIds, FLOW_IDS_ALLOWED);
       if (result !== null) {
         return { result, provider: lastProvider };
       }
-      // invalid payload → loop again (retry at temperature 0)
+      // Unreachable in practice: completeJSON already applied `isUsable`.
+      // Kept so a future validator drift degrades to the fallback, not a throw.
     } catch (error) {
       // ProviderError (timeout/auth/…) → one retry; then bad_json below
       if (attempt === 1) {

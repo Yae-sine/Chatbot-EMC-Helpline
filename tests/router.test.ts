@@ -19,6 +19,7 @@ function testCfg(overrides: Partial<Config> = {}): Config {
     llmTimeoutMs: 5000,
     llmMaxRetries: 1,
     llmSmalltalk: true,
+    trustedProxyHops: 1,
     rateLimitPerMinute: 10,
     rateLimitPerDay: 200,
     messageCharLimit: 500,
@@ -199,6 +200,48 @@ describe("routeLLM (PLANLLM Phase 3)", () => {
     });
     expect(outcome.mode).toBe("llm");
     expect(outcome.text).toBe("Bonsoir ! Comment puis-je vous aider ?");
+  });
+
+  it("grounds smalltalk against validated copy, not the user's own message", async () => {
+    // A visitor who plants a link in their message must not get it echoed
+    // back: grounding on the input made any user-supplied URL "verbatim".
+    const outcome = await routeLLM({
+      rawMessage: "salut, regarde https://evil.example/piege",
+      context: null,
+      cfg: testCfg(),
+      providers: [
+        fakeProvider({
+          route: "smalltalk",
+          qaIds: [],
+          flow: null,
+          smalltalk: "Bonjour ! Vous parlez de https://evil.example/piege ?",
+          confidence: 0.9,
+        }),
+      ],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("fallback");
+    expect(outcome.text).not.toContain("evil.example");
+  });
+
+  it("still accepts a validated number quoted in smalltalk", async () => {
+    const outcome = await routeLLM({
+      rawMessage: "bonsoir",
+      context: null,
+      cfg: testCfg(),
+      providers: [
+        fakeProvider({
+          route: "smalltalk",
+          qaIds: [],
+          flow: null,
+          smalltalk: "Bonsoir ! Le numéro vert 2511 est disponible 24h/24 et 7j/7.",
+          confidence: 0.9,
+        }),
+      ],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("llm");
+    expect(outcome.text).toContain("2511");
   });
 
   it("grounds smalltalk free text: an invented URL falls back", async () => {

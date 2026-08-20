@@ -2,7 +2,45 @@
 // window reset, injectable clock.
 
 import { describe, expect, it } from "vitest";
-import { createRateLimiter } from "@/lib/chatbot/rate-limit";
+import { createRateLimiter, rateLimitKey } from "@/lib/chatbot/rate-limit";
+
+function req(headers: Record<string, string>): Request {
+  return new Request("http://localhost/api/chat", { method: "POST", headers });
+}
+
+describe("rateLimitKey", () => {
+  it("prefers the single-IP headers a proxy sets itself", () => {
+    expect(rateLimitKey(req({ "x-real-ip": "9.9.9.9" }), null)).toBe("ip:9.9.9.9");
+    expect(rateLimitKey(req({ "cf-connecting-ip": "8.8.8.8" }), null)).toBe("ip:8.8.8.8");
+  });
+
+  it("ignores the caller-supplied left of the forwarded chain", () => {
+    const spoofed = req({ "x-forwarded-for": "1.2.3.4, 9.9.9.9" });
+    const other = req({ "x-forwarded-for": "5.6.7.8, 9.9.9.9" });
+    expect(rateLimitKey(spoofed, null)).toBe("ip:9.9.9.9");
+    // Rotating the spoofable entry must not buy a second budget.
+    expect(rateLimitKey(other, null)).toBe(rateLimitKey(spoofed, null));
+  });
+
+  it("counts back the configured number of trusted hops", () => {
+    // CDN + platform: the platform appended the CDN's address, the CDN
+    // appended the real client — so the client is the second from the right.
+    const request = req({ "x-forwarded-for": "1.2.3.4, 77.77.77.77, 10.0.0.1" });
+    expect(rateLimitKey(request, null, 2)).toBe("ip:77.77.77.77");
+    expect(rateLimitKey(request, null, 1)).toBe("ip:10.0.0.1");
+  });
+
+  it("never guesses when the chain is shorter than the configured depth", () => {
+    const request = req({ "x-forwarded-for": "10.0.0.1" });
+    expect(rateLimitKey(request, "sess-1", 2)).toBe("session:sess-1");
+    expect(rateLimitKey(request, null, 2)).toBe("anonymous");
+  });
+
+  it("falls back to the session when no proxy header is present", () => {
+    expect(rateLimitKey(req({}), "sess-2")).toBe("session:sess-2");
+    expect(rateLimitKey(req({}), null)).toBe("anonymous");
+  });
+});
 
 describe("createRateLimiter", () => {
   it("allows a burst up to perMinute then denies within the minute", () => {

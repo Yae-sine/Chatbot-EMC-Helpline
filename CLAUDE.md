@@ -103,6 +103,17 @@ top-5 (never outside the 74 validated entries) → degraded serve at score ≥0.
 - **The prompt must list the flow ids.** `buildUserPrompt` sends
   `FLOW_IDS_ALLOWED`; without that list the model cannot emit a flow id the
   validator accepts, so `route: "flow"` silently never works in production.
+- **Only Gemini can embed.** `createRetriever` picks the Gemini provider for
+  query embeddings regardless of `LLM_PROVIDER`; Groq/OpenRouter throw
+  `not_available` and the artifact is `gemini-embedding-001`. A wrong pick
+  kills semantic retrieval silently (it degrades to lexical).
+- **Meters carry failure kinds and decisions.** `recordCall` takes a `kind`,
+  `recordDecision` counts classifier routes, and `npm run eval` prints both —
+  that is how you find out *which* provider failed and *why* instead of
+  reading a bare ok/fail ratio.
+- **`completeJSON` takes a `validate` callback.** Pass it whenever the payload
+  has a schema (the classifier does): without it, well-formed-but-unusable
+  JSON is metered as a success and the breaker never trips.
 - **Classifier `maxOutputTokens` is 768, deliberately.** Reasoning-capable
   models spend 250–320 tokens thinking before the JSON; at 300 the body is
   truncated and providers reject it.
