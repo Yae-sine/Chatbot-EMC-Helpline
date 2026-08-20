@@ -22,9 +22,8 @@ this file. This file documents the **current** state of the repository; see
 - Current state: a functioning end-to-end chatbot (chat UI → API → matching
   engine → flow layer → static knowledge base) with a confidence-gated hybrid
   LLM/RAG-light layer, light/dark theming, and passing lint/typecheck/tests/
-  build. Not yet deployed publicly; crisis-protocol copy validated and signed
-  off by the encadrante (Mme Belaous); new hybrid copy (`clarifyPrompt`) carries `TODO(encadrante)`.
-
+  build. 
+  
 ## 2. Technology Stack
 
 ### Frontend
@@ -84,6 +83,7 @@ lib/
     matcher.ts            # keyword+synonym scoring, STRONG_TERMS, confidence gate
     fallback.ts           # default "didn't understand" message
     intents.ts            # explicit user-ask triggers -> launch flows
+    emotion.ts            # emotional-state detection (opens météo des émotions)
     session.ts            # in-memory per-session flow state + context (30-min TTL)
     context.ts            # SessionContext helpers (profile, last ids, clarify)
     rate-limit.ts         # per-client LLM gate (minute/day buckets)
@@ -156,6 +156,7 @@ app/api/chat/route.ts  (Node.js Route Handler)
   │  5. handleFlow(state, msg)    ──> active flow drives the reply (guided tree
   │                                   also learns the session profile)
   │  6. detectIntent(message)     ──> explicit ask -> launch a flow
+  │  6b. isEmotionalStatement(msg) ──> opens emotion-weather (validated opener)
   │  7. matchEntry(...) high confidence -> validated answer (mode "static")
   │  8. else routeLLM(...)         (rate-limited per client)
   │        caps → retrieval top5 → degraded serve ≥0.75
@@ -209,6 +210,15 @@ content.
   (verbatim, throws on dead ids), `toResponse`.
 - **Intents** (`lib/chatbot/intents.ts`): explicit user-ask substring triggers
   that launch flows; deliberately disjoint from QA keywords/synonyms.
+- **Emotional gate** (`lib/chatbot/emotion.ts`): pure first-person
+  present-state detection (`isEmotionalStatement`) with factual and
+  third-person suppressors. When it fires the route opens `emotion-weather`
+  with the flow's own validated copy — no new user-facing strings. The looser
+  `hasEmotionalSignal` only attaches the existing `EMOTION_SUPPORT_OPTION`
+  pill to a validated answer, so a message mixing emotion and a procedure
+  keeps its verbatim answer. The classifier reaches the same flow for
+  paraphrases (`route: "flow"`), with a deterministic veto in
+  `lib/router/route.ts` for emotions that belong to a third person.
 - **Matcher** (`lib/chatbot/matcher.ts`): scores every `QAEntry` as
   `keywordMatches * 2 + synonymMatches`; picks the highest score ≥ `MIN_MATCHES`
   (1). Tie-break: more keyword matches, then narrower `profiles` list (more
@@ -396,8 +406,7 @@ string, "isCrisis": boolean, "options"?: string[], "flowId"?: string,
   source doc, flag it instead of inventing content.
 - Deterministic layer stays authoritative: the LLM proposes ids only, every
   answer is served verbatim from the validated database, and the crisis gate
-  always runs first. New hybrid user-facing copy (`clarifyPrompt`) needs the encadrante's sign-off before public use
-  (AGENTS.md §9/§13; `TODO(encadrante)` in `lib/i18n.ts`).
+  always runs first.
 - No user accounts, no message persistence/logging of message content;
   metadata logs (`emc-meta`) exclude message text.
 - Arabic strings are intentionally empty this phase (AGENTS.md §13).

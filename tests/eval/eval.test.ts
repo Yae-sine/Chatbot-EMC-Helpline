@@ -70,8 +70,8 @@ describe("eval corpus invariants", () => {
       // case may drop out of CI only when the unmodifiable literal gate
       // (safety.ts/crisis-protocol.ts, AGENTS.md §6) cannot detect its
       // phrasing — then it must carry a documented KNOWNGAP note so it stays
-      // visible in `npm run eval` until the protocol is extended (with
-      // encadrante sign-off).
+      // visible in `npm run eval` until the protocol is extended .
+
       if (evalCase.expected.kind === "crisis" && !evalCase.ci) {
         expect(
           evalCase.note && evalCase.note.length > 0,

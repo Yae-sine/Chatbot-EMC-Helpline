@@ -1,9 +1,10 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 205
-passed (+ 2 skipped live-only), `npm run eval` green (deterministic gate),
-`build` passing, and the hybrid path verified live against the three providers.
+Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 224
+passed (+ 2 skipped live-only), `npm run eval` green (172 cases / 14
+categories), `build` passing, and the hybrid + emotional paths verified live
+against the three providers.
 
 ## Current Milestone
 
@@ -19,6 +20,50 @@ session context, per-client rate limits, classifier-result caching and a
 golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### Emotional detection → météo des émotions (2026-08-20)
+- [x] **Deterministic gate** (`lib/chatbot/emotion.ts`, new): first-person
+      present-state patterns (« j'ai très peur », « je n'en dors plus »,
+      « je suis submergée », « ça me hante »…) with two suppressors — a
+      factual marker (question mark, plainte/signaler/loi/comment…) and a
+      third-person subject (mon fils, ma fille, mon élève…). Runs in
+      `app/api/chat/route.ts` step 4b, after explicit intents and before the
+      matcher, and opens `emotion-weather` via `launchFlow`. No key, no quota,
+      no provider needed
+- [x] **Zero new user-facing copy**: the flow's own validated opener
+      (« Je suis là pour vous écouter… une météo intérieure ») and its
+      per-emotion psychoeducation scripts are the reply
+- [x] **Classifier tier** (`lib/llm/classifier.ts`): the `flow` rule now also
+      covers a message describing the writer's own emotional state, and the
+      `offtopic` rule no longer swallows it (it used to say « TOUJOURS quand
+      le message évoque un danger **ou une détresse** »; the deterministic
+      crisis module still owns danger/suicidal phrasing and still runs first).
+      **Bug fixed on the way: the allowed flow ids were never sent to the
+      model**, so `route: "flow"` could not produce a validator-accepted id in
+      production — `buildUserPrompt` now lists `FLOW_IDS_ALLOWED`
+- [x] **Third-person veto** (`lib/router/route.ts`): observed live — the model
+      read « ma fille a peur d'aller à l'école » as an emotional state and
+      opened the exercise, whose scripts address the person who feels it. A
+      deterministic guard now refuses `emotion-weather` for third-person
+      messages and the prompt states the rule, so the veto stays a net (that
+      message now returns the validated parent answer 7.6)
+- [x] **Support pill on validated answers**: a message mixing emotion with a
+      real question keeps its verbatim answer and gains the existing
+      « Aide-moi à gérer mes émotions » option (already an `emotion-weather`
+      intent trigger; `AppShell`/`QuickReplies` needed no change). The literal
+      is now one `EMOTION_SUPPORT_OPTION` constant reused by `guided.ts` and
+      `psychologique.ts`
+- [x] **Free-text escape** (`lib/chatbot/flows/emotion-weather.ts`): a real
+      question at the intensity/emotion step hands the message back to the
+      matcher (`fallbackToMatcher`, the guided-tree pattern) instead of
+      re-prompting
+- [x] **Tests + eval**: `tests/emotion.test.ts` (new) plus route/flow/router
+      cases; new `emotional` eval category (9 cases, 8 CI-asserted **with no
+      key** — that is what the deterministic tier buys). Deterministic report:
+      emotional 8/9, the miss being the keys-only paraphrase case. Live: the
+      reference sentence opens the flow in 20 ms with zero provider calls;
+      « tout ça me ronge de l'intérieur » and « je me réveille la nuit en
+      repensant à ces messages » reach it through the classifier in ~1.2–1.8 s
 
 ### Hybrid-layer hardening + live verification (2026-08-20)
 - [x] **Review fixes (13)** on top of the phases 0–7 commit: turn counting
@@ -102,9 +147,9 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
       cache keyed by normalized message+context; `lib/chatbot/observe.ts`
       `emc-meta` log lines without message content; `lib/chatbot/meters.ts`
       provider call ring consumed by the live eval report)
-- [x] **i18n/UI**: `clarifyPrompt`  key (fr + ar scaffold,
-      `TODO(encadrante)` sign-off pending), `MessageBubble` badge on static
-      answers, `mode`/`matchedId`/`confidence` on the response contract
+- [x] **i18n/UI**: `clarifyPrompt`  key (fr + ar scaffold),
+      `mode`/`matchedId`/`confidence` on the response contract (no badge is
+      rendered in `MessageBubble` — only `Header` uses `Badge`)
 - [x] **Tests**: 187 passing at the time of that commit (now 205, see the
       hardening entry above) (incl. `tests/router.test.ts`,
       `tests/hybrid-route.test.ts`, `tests/retriever.test.ts`,
@@ -285,9 +330,6 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   make one real call) before trusting a model id in `.env`.
 - **No `import "server-only"` guard on `lib/llm/*`** although PLANLLM §14 asks
   for it; keys are server-side by construction today (route handler only).
-- **New user-facing copy pending sign-off.** `clarifyPrompt` 
-   (`lib/i18n.ts`) carry `TODO(encadrante)` — implementable
-  now, needs Mme Belaous validation before public use (AGENTS.md §9/§13).
 
 ## Technical Debt
 
@@ -345,11 +387,9 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
    `GEMINI_API_KEY` in `.env`, run `npm run index-embeddings`, then `npm run
    eval` to read the before/after table; record call counts and the artifact in
    this file.
-3. **Get `clarifyPrompt`  sign-off** from the encadrante
-   (TODO(encadrante) in `lib/i18n.ts`).
-4. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
+3. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
    AppShell session wiring (`@testing-library/react` already installed).
-5. **Align the version string** (`lib/i18n.ts` vs `package.json`).
-6. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
+4. **Align the version string** (`lib/i18n.ts` vs `package.json`).
+5. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
    needs it.
-7. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).
+6. **Fill the Arabic dictionary** (later phase, per AGENTS.md §13).

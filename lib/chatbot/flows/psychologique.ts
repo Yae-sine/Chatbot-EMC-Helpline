@@ -1,4 +1,5 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
+import { EMOTION_SUPPORT_OPTION } from "@/lib/chatbot/emotion";
 import { askAgain, matchOption, qaAnswer } from "./helpers";
 
 // Parcours psychologique (Ressources Chatbot.docx.pdf — Guide technique, §4):
@@ -7,7 +8,7 @@ import { askAgain, matchOption, qaAnswer } from "./helpers";
 // non-diagnostic only (the guide explicitly frames the module as recognition,
 // normalization and action — never a diagnostic tool).
 const MENU_OPTIONS = [
-  "Aide-moi à gérer mes émotions",
+  EMOTION_SUPPORT_OPTION,
   "Les conséquences sur la santé mentale",
   "Les signaux d'alerte chez un enfant",
   "Les conséquences physiques, sociales et durables",
@@ -45,7 +46,7 @@ export function parcoursPsychologiqueFlow(state: FlowState, rawMessage: string):
       if (index < 0) return askAgain(state);
       const topic = MENU_OPTIONS[index];
       if (topic === "Terminer") return closing();
-      if (topic === "Aide-moi à gérer mes émotions") {
+      if (topic === EMOTION_SUPPORT_OPTION) {
         return { text: "", switchTo: "emotion-weather" };
       }
       if (topic === "PHQ-4 et DASS-21 : explorer mon état") {

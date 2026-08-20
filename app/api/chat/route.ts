@@ -16,6 +16,11 @@ import {
 } from "@/lib/chatbot/context";
 import { handleFlow, launchFlow } from "@/lib/chatbot/flows";
 import { qaAnswer } from "@/lib/chatbot/flows/helpers";
+import {
+  EMOTION_SUPPORT_OPTION,
+  hasEmotionalSignal,
+  isEmotionalStatement,
+} from "@/lib/chatbot/emotion";
 import { createRateLimiter } from "@/lib/chatbot/rate-limit";
 import { loadConfig } from "@/lib/config/env";
 import { buildProviderChain } from "@/lib/llm/client";
@@ -73,6 +78,15 @@ function rateLimitKey(request: Request, sessionId: string | null): string {
   return sessionId !== null ? `session:${sessionId}` : "anonymous";
 }
 
+// An answer to a message that also carries emotional weight keeps its
+// validated text and only gains the existing support pill — the same string
+// detectIntent maps to the météo des émotions, so tapping it launches the
+// flow through normal intent routing. Never invented copy, never a hijack.
+function emotionPill(message: string, matchedId?: string | null): string[] | undefined {
+  if (!matchedId) return undefined;
+  return hasEmotionalSignal(message) ? [EMOTION_SUPPORT_OPTION] : undefined;
+}
+
 // Steps 5 & 6: high-confidence static match, otherwise the hybrid LLM layer
 // (rate-limited; denied requests get today's fallback, never an error).
 async function resolveAnswer(
@@ -93,6 +107,7 @@ async function resolveAnswer(
       mode: "static",
       matchedId: match.entry.id,
       confidence: 1,
+      options: emotionPill(message, match.entry.id),
     });
   }
 
@@ -122,7 +137,7 @@ async function resolveAnswer(
   return NextResponse.json({
     text: outcome.text,
     isCrisis: false,
-    options: outcome.options,
+    options: outcome.options ?? emotionPill(message, outcome.matchedId),
     flowId: outcome.flowId,
     mode: outcome.mode,
     matchedId: outcome.matchedId,
@@ -259,6 +274,23 @@ export async function POST(request: Request) {
       isCrisis: false,
       options: output.options,
       flowId: intent,
+    });
+  }
+
+  // 4b. Emotional-state message → open the météo des émotions (deterministic
+  // tier: no key, no quota, no provider needed). The flow's own validated
+  // opener does the talking, so no new user-facing copy is involved. A
+  // factual question or a third-person subject suppresses this (see
+  // emotion.ts), which keeps « comment porter plainte ? j'ai peur » on the
+  // validated legal answer — that message gets the support pill instead.
+  if (isEmotionalStatement(message)) {
+    const { output, nextState } = launchFlow("emotion-weather");
+    if (sessionId) setFlowState(sessionId, nextState);
+    return NextResponse.json({
+      text: output.text,
+      isCrisis: false,
+      options: output.options,
+      flowId: "emotion-weather",
     });
   }
 

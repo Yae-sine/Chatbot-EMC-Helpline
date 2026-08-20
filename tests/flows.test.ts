@@ -54,6 +54,15 @@ describe("handleFlow orchestration", () => {
     expect(s4.output.text).toContain("Personne ne devrait affronter cela seul(e)");
   });
 
+  it("a real question at the intensity step hands the message back to the matcher", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "Comment porter plainte ?");
+    expect(s2.output.fallbackToMatcher).toBe(true);
+    // A non-question miss still keeps the exercise alive.
+    const s3 = handleFlow(s1.nextState as FlowState, "bof");
+    expect(s3.nextState?.step).toBe("intensity");
+  });
+
   it("a wrong answer at any step keeps the flow alive (state is retained)", () => {
     const s1 = handleFlow(start("parcours-juridique"), "");
     const s2 = handleFlow(s1.nextState as FlowState, "message hors sujet");

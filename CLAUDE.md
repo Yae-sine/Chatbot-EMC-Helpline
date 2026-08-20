@@ -57,15 +57,14 @@ Always run lint + typecheck + test before calling a task done (AGENTS.md §4).
 5. **Every LLM failure degrades to the existing fallback.** Timeout, 429,
    auth, bad JSON, open breaker, rate-limit denial: the user gets today's
    fallback copy, never an error and never a 429.
-6. **New user-facing copy needs sign-off.** `clarifyPrompt` in `lib/i18n.ts`
-   still carries `TODO(encadrante)`.
 
 ## Request pipeline (`app/api/chat/route.ts`)
 
 ```
 validate body → detectCrisis → farewell → 2b: noteTurn (the ONLY turn counter)
-→ pending clarification → active flow → detectIntent → matchEntry (confidence
-"high" ⇒ mode "static") → rate-limit gate → routeLLM → fallback
+→ pending clarification → active flow → detectIntent → isEmotionalStatement
+(opens emotion-weather) → matchEntry (confidence "high" ⇒ mode "static")
+→ rate-limit gate → routeLLM → fallback
 ```
 
 `routeLLM` (`lib/router/route.ts`, pure, no Next imports): caps → retrieval
@@ -95,6 +94,15 @@ top-5 (never outside the 74 validated entries) → degraded serve at score ≥0.
   `gemini-embedding-001`). Regenerate after any knowledge-base edit. A
   malformed vector now fails loudly (`isEmbeddingsFile` checks non-empty and
   dimension-consistent rows) instead of leaving entries retrieval-blind.
+- **The emotional path is two-tiered on purpose.** `lib/chatbot/emotion.ts` is
+  the deterministic tier (no key, no quota, CI-asserted); the classifier
+  `flow` route is the paraphrase net. Both open the same flow, and both are
+  vetoed for third-person messages (`lib/router/route.ts`) because the flow's
+  scripts address the person who feels the emotion. Never add comfort copy
+  here — the flow's own validated opener is the reply.
+- **The prompt must list the flow ids.** `buildUserPrompt` sends
+  `FLOW_IDS_ALLOWED`; without that list the model cannot emit a flow id the
+  validator accepts, so `route: "flow"` silently never works in production.
 - **Classifier `maxOutputTokens` is 768, deliberately.** Reasoning-capable
   models spend 250–320 tokens thinking before the JSON; at 300 the body is
   truncated and providers reject it.

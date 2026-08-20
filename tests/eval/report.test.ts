@@ -7,7 +7,7 @@ import { QA_DATABASE } from "@/data/qa-database";
 import { loadConfig } from "@/lib/config/env";
 import { createRetriever } from "@/lib/rag/retriever";
 import { metersSnapshot, resetMeters } from "@/lib/chatbot/meters";
-import { EVAL_CORPUS } from "./corpus";
+import { EVAL_CATEGORIES, EVAL_CORPUS } from "./corpus";
 import { evaluate, formatReport } from "./harness";
 
 const LIVE = (process.env.GEMINI_API_KEY ?? "") !== "";
@@ -19,7 +19,7 @@ describe("eval report", () => {
     // The report is the deliverable; keep the test honest about its shape.
     expect(summary.total).toBe(EVAL_CORPUS.length);
     expect(summary.ciTotal).toBeGreaterThan(0);
-    expect(summary.categories.length).toBe(13);
+    expect(summary.categories.length).toBe(EVAL_CATEGORIES.length);
     expect(summary.pass).toBeGreaterThanOrEqual(summary.ciTotal - summary.failures.filter((f) => f.evalCase.ci).length);
 
     const report = formatReport(summary);

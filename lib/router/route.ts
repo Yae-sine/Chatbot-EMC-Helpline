@@ -8,6 +8,12 @@ import { t } from "@/lib/i18n";
 import { fallbackMessage } from "@/lib/chatbot/fallback";
 import { createTTLCache, fnv1a } from "@/lib/chatbot/cache";
 import { emptyContext, noteAnswer, setPendingClarify, summarize, type SessionContext } from "@/lib/chatbot/context";
+import {
+  EMOTION_SUPPORT_OPTION,
+  hasEmotionalSignal,
+  hasThirdPersonSubject,
+  isEmotionalStatement,
+} from "@/lib/chatbot/emotion";
 import { detectCrisis } from "@/lib/chatbot/safety";
 import { checkFreeText, type ClassifierValidated } from "@/lib/chatbot/validator";
 import { launchFlow } from "@/lib/chatbot/flows";
@@ -150,6 +156,23 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
       };
     }
     case "flow": {
+      // Deterministic veto (observed live): the classifier sometimes reads
+      // « ma fille a peur d'aller à l'école » as an emotional state and opens
+      // the météo des émotions, whose scripts address the person who feels
+      // it. A parent or teacher describing someone else must not be dropped
+      // into a victim-framed exercise. A parent voicing their own distress
+      // (« j'ai très peur pour ma fille ») still gets the door, as a pill.
+      if (
+        classified.flow === "emotion-weather" &&
+        hasThirdPersonSubject(rawMessage) &&
+        !isEmotionalStatement(rawMessage)
+      ) {
+        return {
+          ...fallback(),
+          options: hasEmotionalSignal(rawMessage) ? [EMOTION_SUPPORT_OPTION] : undefined,
+          contextDelta: ctx,
+        };
+      }
       let launched: ReturnType<typeof launchFlow>;
       try {
         launched = launchFlow(classified.flow as FlowId);

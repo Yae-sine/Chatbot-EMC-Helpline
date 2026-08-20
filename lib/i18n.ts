@@ -1,9 +1,9 @@
 const fr = {
   fallback:
     "Je n'ai pas bien compris votre demande. Pouvez-vous reformuler votre message avec d'autres mots ? Je peux vous aider sur les parcours suivants : technique, juridique, informatif, psychologique et parental.",
-  // TODO(encadrante): valider le libellé (nouveau texte utilisateur, PLANLLM Phase 3)
+
   clarifyPrompt: "Plusieurs sujets sont possibles. Pouvez-vous préciser : {a} ou {b} ?",
-  // TODO(encadrante): valider le libellé (nouveau texte utilisateur, PLANLLM Phase 3)
+
   emptyMessage:
     "Je n'ai pas bien compris votre demande. Pouvez-vous reformuler votre message ?",
   farewell:

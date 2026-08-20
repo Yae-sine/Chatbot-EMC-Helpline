@@ -1,4 +1,5 @@
 import type { FlowId, FlowOutput, FlowState } from "@/types/flow";
+import { EMOTION_SUPPORT_OPTION } from "@/lib/chatbot/emotion";
 import { matchOption, qaAnswer } from "./helpers";
 
 interface GuidedOption {
@@ -26,7 +27,7 @@ const LEAF_SUFFIX = "Vous pouvez continuer à me poser des questions librement."
 // normal intent step — no switchTo, no new content. The breathing and
 // grounding exercises are already offered inside that module, so they are
 // NOT duplicated here. Shown once, after the QA answer.
-const LEAF_OPTIONS = ["Aide-moi à gérer mes émotions"];
+const LEAF_OPTIONS = [EMOTION_SUPPORT_OPTION];
 const EXIT_TEXT =
   "D'accord. Écrivez librement votre question, ou demandez l'un des parcours guidés : technique, juridique, informatif ou psychologique.";
 
@@ -272,7 +273,7 @@ export const GUIDED_TREE: GuidedNode[] = [
       // The label is an exact emotion-weather intent trigger (intents.ts),
       // so this option hands the conversation to the real support module via
       // switchTo — no duplicated content; breathing/grounding are inside it.
-      { id: "emotions", label: "Aide-moi à gérer mes émotions", switchTo: "emotion-weather" },
+      { id: "emotions", label: EMOTION_SUPPORT_OPTION, switchTo: "emotion-weather" },
       { id: "autre", label: "Autre", exit: true },
     ],
   },

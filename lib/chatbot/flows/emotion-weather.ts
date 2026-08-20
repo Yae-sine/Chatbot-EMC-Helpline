@@ -1,4 +1,5 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
+import { looksFactual } from "@/lib/chatbot/emotion";
 import { askAgain, matchOption } from "./helpers";
 
 // Module "Météo des Émotions" (Ressources Chatbot.docx.pdf — Guide technique,
@@ -84,6 +85,9 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
     case "intensity": {
       const index = matchOption(rawMessage, INTENSITY_OPTIONS);
       if (index < 0) {
+        // A real question must not be trapped by askAgain: hand it back to the
+        // general matcher (same escape as the guided tree, guided.ts).
+        if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
         return askAgain(state);
       }
       return {
@@ -96,6 +100,7 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
     case "emotion": {
       const index = matchOption(rawMessage, EMOTION_OPTIONS);
       if (index < 0) {
+        if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
         return askAgain(state);
       }
       const emotion = EMOTION_OPTIONS[index];

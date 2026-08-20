@@ -90,6 +90,47 @@ describe("routeLLM (PLANLLM Phase 3)", () => {
     expect(outcome.text?.length).toBeGreaterThan(0);
   });
 
+  it("vetoes emotion-weather when the emotion belongs to someone else", async () => {
+    // The flow's scripts address the person who feels it; a parent describing
+    // their child must not be dropped into the exercise, whatever the model says.
+    const outcome = await routeLLM({
+      rawMessage: "ma fille a peur d'aller à l'école",
+      context: null,
+      cfg: testCfg(),
+      providers: [fakeProvider({ route: "flow", qaIds: [], flow: "emotion-weather", smalltalk: null, confidence: 0.9 })],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("fallback");
+    expect(outcome.flowId).toBeUndefined();
+    expect(outcome.options).toBeUndefined();
+  });
+
+  it("offers the support pill when a parent voices their own distress", async () => {
+    const outcome = await routeLLM({
+      rawMessage: "j'ai très peur pour ma fille",
+      context: null,
+      cfg: testCfg(),
+      providers: [fakeProvider({ route: "flow", qaIds: [], flow: "emotion-weather", smalltalk: null, confidence: 0.9 })],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("fallback");
+    expect(outcome.flowId).toBeUndefined();
+    expect(outcome.options).toEqual(["Aide-moi à gérer mes émotions"]);
+  });
+
+  it("still opens emotion-weather for a first-person emotional statement", async () => {
+    const outcome = await routeLLM({
+      rawMessage: "tout ça me ronge de l'intérieur",
+      context: null,
+      cfg: testCfg(),
+      providers: [fakeProvider({ route: "flow", qaIds: [], flow: "emotion-weather", smalltalk: null, confidence: 0.9 })],
+      retriever: retrieverWith([]),
+    });
+    expect(outcome.mode).toBe("llm");
+    expect(outcome.flowId).toBe("emotion-weather");
+    expect(outcome.text).toContain("météo intérieure");
+  });
+
   it("builds the clarification prompt from two verified questions", async () => {
     const outcome = await routeLLM({
       rawMessage: "signaler et porter plainte",

@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QA_DATABASE } from "@/data/qa-database";
 import { emptyContext, setPendingClarify, setProfile } from "@/lib/chatbot/context";
+import { EMOTION_SUPPORT_OPTION } from "@/lib/chatbot/emotion";
 import { getContext, setContext } from "@/lib/chatbot/session";
 
 interface ChatResponse {
@@ -115,6 +116,52 @@ describe("provider-less route (no LLM keys)", () => {
     expect(getContext(sessionId)?.pendingClarify).toBeNull();
   });
 
+  it("an emotional statement opens the météo des émotions without any key", async () => {
+    const response = await post({
+      message: "Depuis que cela m'arrive, j'ai très peur et je n'arrive plus à penser à autre chose",
+      sessionId: "emotional-open",
+    });
+    expect(response.flowId).toBe("emotion-weather");
+    expect(response.isCrisis).toBe(false);
+    expect(response.text).toContain("météo intérieure");
+    expect(response.options).toHaveLength(5);
+
+    // The flow then behaves exactly as when it is launched by its trigger.
+    const next = await post({ message: "3 - Très affecté(e) ⛈️", sessionId: "emotional-open" });
+    expect(next.text).toContain("sentiment le plus fort");
+  });
+
+  it("a factual question mid-exercise is answered instead of re-prompted", async () => {
+    const sessionId = "emotional-escape";
+    const launched = await post({ message: "je suis submergée", sessionId });
+    expect(launched.flowId).toBe("emotion-weather");
+
+    const question = await post({ message: "Comment porter plainte ?", sessionId });
+    expect(question.flowId).toBeUndefined();
+    expect(question.mode).toBe("static");
+    expect(question.matchedId).toBe("4.5");
+  });
+
+  it("a message mixing emotion and a real question keeps the validated answer plus the pill", async () => {
+    const response = await post({ message: "j'ai très peur, comment porter plainte ?" });
+    expect(response.flowId).toBeUndefined();
+    expect(response.mode).toBe("static");
+    expect(response.text).toBe(answerOf(response.matchedId ?? ""));
+    expect(response.options).toEqual([EMOTION_SUPPORT_OPTION]);
+  });
+
+  it("does not open the flow when the emotion belongs to someone else", async () => {
+    const response = await post({ message: "ma fille a peur d'aller à l'école" });
+    expect(response.flowId).toBeUndefined();
+  });
+
+  it("crisis still wins over an emotional statement", async () => {
+    const response = await post({ message: "je veux mourir, j'ai très peur" });
+    expect(response.isCrisis).toBe(true);
+    expect(response.flowId).toBeUndefined();
+    expect(response.text).toContain("2511");
+  });
+
   it("learns the parent profile from the guided tree (Phase 5)", async () => {
     const sessionId = "phase5-guided-profile";
     const launch = await post({ message: "Je ne sais pas quoi demander", sessionId });
@@ -173,6 +220,40 @@ describe("hybrid route with a stubbed provider", () => {
     expect(QA_DATABASE.some((entry) => entry.id === matchedId)).toBe(true);
     expect(answerOf(matchedId)).toBe(response.text);
     expect(response.text.length).toBeGreaterThan(20);
+  });
+
+  it("serves the météo des émotions when the classifier answers flow/emotion-weather", async () => {
+    // Paraphrases the deterministic list does not carry are the classifier's
+    // job; the flow id whitelist must reach the model for this to be possible.
+    const prompts: string[] = [];
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as {
+          contents?: Array<{ parts: Array<{ text: string }> }>;
+        };
+        prompts.push(body.contents?.[0]?.parts?.[0]?.text ?? "");
+        const payload = JSON.stringify({
+          route: "flow",
+          qaIds: [],
+          flow: "emotion-weather",
+          smalltalk: null,
+          confidence: 0.9,
+        });
+        return new Response(
+          JSON.stringify({ candidates: [{ content: { parts: [{ text: payload }] } }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+
+    const response = await post({ message: "tout ça me ronge de l'intérieur en ce moment" });
+    expect(response.mode).toBe("llm");
+    expect(response.flowId).toBe("emotion-weather");
+    expect(response.text).toContain("météo intérieure");
+    expect(prompts.some((prompt) => prompt.includes("Flux autorisés"))).toBe(true);
+    expect(prompts.some((prompt) => prompt.includes("emotion-weather"))).toBe(true);
   });
 
   it("budgets the LLM path per client, and a spoofed forwarded-for cannot reset it", async () => {
