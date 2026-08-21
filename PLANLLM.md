@@ -43,7 +43,7 @@ app/api/chat/route.ts  (POST, nodejs)
 
 **Data model** (`types/qa.ts`): `QAEntry { id, category, question, profiles,
 parcours, sampleFormulations, answer, keywords, synonyms, tags }`.
-`data/qa-database.ts`: 74 entries (~2,760 lines), verbatim answers, validated
+`data/qa-database.ts`: 75 entries (~2,860 lines), verbatim answers, validated
 keywords + generated variants, synonyms, tags.
 `data/crisis-protocol.ts`: 2 cases (~70 keywords incl. generated variants),
 exact messages validated and signed off by the encadrante (Mme Belaous).
@@ -87,7 +87,7 @@ animation, `LinkifiedText` (safe target="_blank"), light/dark theming,
    falls through to matcher.
 5. **Intent**: substring triggers, deliberately disjoint from QA keywords,
    launch the 8 flows.
-6. **QA matcher**: score all 74 entries, best ≥ 1 → verbatim `answer`.
+6. **QA matcher**: score all 75 entries, best ≥ 1 → verbatim `answer`.
 7. **Fallback**: single static message listing the five parcours.
 
 ---
@@ -109,7 +109,7 @@ animation, `LinkifiedText` (safe target="_blank"), light/dark theming,
    chaining, guided tree with back-navigation, non-blocking exits.
 8. **Privacy discipline** — sessions store routing data only, no content
    logging, i18n indirection from day one.
-9. **Real knowledge** — 74 validated entries incl. per-authority answers
+9. **Real knowledge** — 75 validated entries incl. per-authority answers
    (4.10–4.14), child-risk facettes (6.19–6.26), prevention (7.8–7.12).
 
 ---
@@ -188,7 +188,7 @@ animation, `LinkifiedText` (safe target="_blank"), light/dark theming,
 
 ## 7. RAG design for this codebase
 
-**Corpus size (observed):** 74 QA entries (~60–80K tokens max) +
+**Corpus size (observed):** 75 QA entries (~60–80K tokens max) +
 `Ressources Chatbot.docx.pdf` (~670 extracted lines; the Q&A base PDF was
 removed from the repo — `docs/qa-source.md` carries that content) +
 `docs/qa-source.md` (638 lines). ≈ 150–300 chunks total. Tiny — this shapes

@@ -638,3 +638,46 @@ The list "Cela inclut" from §IV is implemented as eight individual entries:
 
 Each entry pairs the verbatim definition with the validated reporting links
 (evigilance.ma / cyberconfiance.ma/signalment, IWF for child-abuse material).
+
+### 6.7–6.18, 6.24–6.26 — reporting route added to the facettes
+
+A definition alone leaves a victim without a next step, so every facette entry
+now closes with the validated route for that specific attack, in the same style
+as 6.19–6.23. No new channel was introduced: each one already appears in §I.3
+("Contact utiles et liens directs"), §II ("Comment et où porter plainte ?") or
+§IV ("BLOQUER et SIGNALER", "RÉFLEXE N°1 : Faites des captures d'écran").
+
+| entry | route appended |
+| --- | --- |
+| 6.7 stalking | captures d'écran → bloquer et signaler (evigilance) → plainte si menaces |
+| 6.8 cybermenaces | preuves → evigilance → plainte (E-Blagh / plaintes.pmp.ma) |
+| 6.9 dénigrement | captures → réseau social + evigilance |
+| 6.10 doxing | captures → evigilance → plaintes.pmp.ma |
+| 6.11 exclusion | parler à une personne de confiance → signaler |
+| 6.12 flaming | bloquer le compte → signaler |
+| 6.13 fraping | reprendre le compte → signaler → plainte |
+| 6.14 grooming | 2511 (ONDE) + evigilance ; images d'abus → IWF |
+| 6.15 usurpation d'identité | réseau social + evigilance → plainte |
+| 6.16 outing / trickery | captures → evigilance / cyberconfiance |
+| 6.17 revenge porn | evigilance + StopNCII (adultes) / Take It Down (mineurs) → plainte |
+| 6.18 sextorsion | ne pas céder → preuves → signaler → plainte ; enfant → 2511 |
+| 6.24 contenus inappropriés | reportcontent.google (site pornographique), IWF, 2511 |
+| 6.25 racisme / haine | signaler → plainte (parquet / Police) |
+| 6.26 fraude / escroquerie | preuves → evigilance → E-Blagh / plaintes.pmp.ma |
+
+### 6.27 — Quelqu'un a publié une photo ou une vidéo humiliante de moi, que faire ?
+
+**Profils concernés:** Victime (mineure ou majeure), parent, enseignant, témoin
+**Parcours:** Informatif
+
+**Réponse (verbatim §IV "types de cyberviolence que votre enfant pourrait
+rencontrer" + §I.3 pour la route de signalement):**
+La publication d'une photo ou d'une vidéo embarrassante ou humiliante de la
+victime est une forme de cyberviolence. Faites des captures d'écran, signalez la
+publication directement au réseau social puis sur https://evigilance.ma/fr ; si
+le contenu est intime, la suppression peut être demandée sur
+https://stopncii.org/?lang=fr-fr (adultes) ou https://takeitdown.ncmec.org/fr/
+(contenu pris avant 18 ans).
+
+**Mots-clés déclencheurs:** photo humiliante, vidéo humiliante, photo
+embarrassante, vidéo embarrassante, publié une photo, publié une vidéo

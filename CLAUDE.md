@@ -68,7 +68,7 @@ validate body → detectCrisis → farewell → 2b: noteTurn (the ONLY turn coun
 ```
 
 `routeLLM` (`lib/router/route.ts`, pure, no Next imports): caps → retrieval
-top-5 (never outside the 74 validated entries) → degraded serve at score ≥0.75
+top-5 (never outside the 75 validated entries) → degraded serve at score ≥0.75
 (zero LLM calls) → cached classifier → `qa` | `clarify` | `flow` | `smalltalk`
 (only after `checkFreeText`) | `offtopic`.
 
@@ -90,7 +90,7 @@ top-5 (never outside the 74 validated entries) → degraded serve at score ≥0.
 - **Module-level singletons.** The route builds `cfg`/`providers`/`retriever`
   at import time. Tests must `vi.resetModules()` after changing `process.env`;
   standalone scripts must call `loadDotEnv()` **before** importing the route.
-- **`data/embeddings.json` is a generated artifact** (74 × 3072,
+- **`data/embeddings.json` is a generated artifact** (75 × 3072,
   `gemini-embedding-001`). Regenerate after any knowledge-base edit. A
   malformed vector now fails loudly (`isEmbeddingsFile` checks non-empty and
   dimension-consistent rows) instead of leaving entries retrieval-blind.

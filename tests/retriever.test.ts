@@ -205,7 +205,7 @@ describe("createRetriever", () => {
     expect(Array.isArray(top)).toBe(true);
   });
 
-  it("keeps the production 74-entry database retrievable", async () => {
+  it("keeps the production 75-entry database retrievable", async () => {
     const retriever = createRetriever(noKeysCfg(), QA_DATABASE);
     const top = await retriever.retrieve("Une ex a posté mes photos sans mon accord", { topK: 5 });
     expect(top).toHaveLength(5);

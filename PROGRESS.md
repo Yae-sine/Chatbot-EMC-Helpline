@@ -21,6 +21,39 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
 
+### Informatif facettes: definition → definition + reporting route (2026-08-21)
+- [x] **15 answers enriched** (`data/qa-database.ts`): the 12 facettes served by
+      the `parcours informatif` menu (6.7–6.18: stalking, cybermenaces,
+      dénigrement, doxing, exclusion, flaming, fraping, grooming, usurpation,
+      outing, revenge porn, sextorsion) plus 6.24 contenus inappropriés, 6.25
+      racisme/haine and 6.26 fraude were definition-only. Each now closes with
+      the validated route for that specific attack, in the house style of
+      6.19–6.23 (which already had it and were left untouched)
+- [x] **Channels are verbatim from `Ressources Chatbot.docx.pdf`** (§I.3
+      contacts, §II « Comment et où porter plainte ? », §IV « BLOQUER et
+      SIGNALER » / « RÉFLEXE N°1 : Faites des captures d'écran »): evigilance,
+      cyberconfiance/signalment, IWF, reportcontent.google, Take It Down,
+      StopNCII, 2511 (ONDE), plaintes.pmp.ma, e-blagh.ma. Nothing invented
+- [x] **New entry 6.27** — « Quelqu'un a publié une photo ou une vidéo
+      humiliante de moi, que faire ? ». The §IV theme « publication de photo ou
+      vidéo embarrassante ou humiliante » existed only inside 6.1's enumeration
+      and 3.2's how-to-report. Everything else in the PDF was already covered:
+      the bonnes pratiques (7.8–7.12) and every reporting channel (3.x) exist
+- [x] **Mirrored in `docs/qa-source.md`** (annex: per-entry route table + the
+      6.27 block) and counts updated everywhere (74 → 75: `PROJECT_CONTEXT.md`
+      §7 table, `tests/matcher.test.ts`, `PLANLLM.md`, `CLAUDE.md`,
+      `lib/router/route.ts` comment)
+- [x] **`data/embeddings.json` regenerated** — 75 vectors, dim 3072, no
+      malformed row. Needed because `buildIndexPayload` embeds
+      question/formulations/synonyms/tags (the 15 answer edits alone required
+      no re-index)
+- [x] **Verified**: lint, typecheck, 242 tests (incl. the matcher invariant that
+      every `sampleFormulation` resolves back to its own entry — 6.27 does not
+      collide with 3.2/3.4), deterministic `npm run eval` unchanged at 98/172
+      with strict id accuracy 50/105, and a live walk of the parcours
+      (facettes → Doxing / Revenge porn / Grooming, risks → contenus
+      inappropriés) showing the enriched answers served verbatim
+
 ### Review remediation + provider observability (2026-08-20)
 - [x] **Retrieval used the wrong provider for embeddings**
       (`lib/rag/retriever.ts`): the query was embedded with `providers[0]`,
@@ -294,7 +327,7 @@ run could not explain (it reported only "27/54 calls failed"):
 - [x] Farewell phrases recognized at route level; they clear any active flow
 
 ### Knowledge base / data
-- [x] 74-entry typed `QA_DATABASE` (`data/qa-database.ts`) across 6 categories,
+- [x] 75-entry typed `QA_DATABASE` (`data/qa-database.ts`) across 6 categories,
       sourced from `docs/qa-source.md` + validated PDF (Ressources
       Chatbot.docx.pdf, extract in `/tmp/opencode/ressources-chatbot.txt`):
       ids 2.3–2.4, 3.7–3.9, 4.6–4.14 (incl. per-authority complaint entries),
@@ -331,7 +364,7 @@ run could not explain (it reported only "27/54 calls failed"):
 - [x] `tests/safety.test.ts` — every crisis keyword triggers its case, exact
       message assertion, Case 2 beats Case 1, crisis short-circuits the matcher
       through the real `POST` route, case/accent insensitivity
-- [x] `tests/matcher.test.ts` — 74 entries / unique ids, every
+- [x] `tests/matcher.test.ts` — 75 entries / unique ids, every
       `sampleFormulation` resolves back to its own entry
 - [x] `tests/spotcheck.test.ts` — 28 qualitative end-to-end phrasings
       (incl. legal-answer disambiguation 4.1 vs 4.9 and the new
@@ -407,7 +440,7 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
 
 ## Technical Debt
 
-- **`data/embeddings.json` is a generated artifact** (74 vectors, model
+- **`data/embeddings.json` is a generated artifact** (75 vectors, model
   `gemini-embedding-001`) — absent by default; regenerate with `npm run
   index-embeddings` after KB edits.
 - **Embedding provider only supports Gemini** (`gemini-embedding-001`;

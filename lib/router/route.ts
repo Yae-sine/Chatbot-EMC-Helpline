@@ -107,7 +107,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
   if (rawMessage.length > cfg.messageCharLimit) return fallback();
   if (ctx.turnCount > cfg.sessionTurnCap) return fallback();
 
-  // c. Candidates never leave the 74-entry validated database (top 5).
+  // c. Candidates never leave the 75-entry validated database (top 5).
   const candidates = await retriever.retrieve(rawMessage, { profile: ctx.profile, topK: 5 });
 
   // d. Cheap path: a clearly-matching top candidate is served with zero LLM

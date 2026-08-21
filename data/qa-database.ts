@@ -1628,7 +1628,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi le stalking exactement ?",
     ],
     answer:
-      "Le stalking est un harcèlement obsessionnel par des tentatives de prise de contact, des commentaires et des messages nombreux et répétés, par exemple en cas d'amour déçu.",
+      "Le stalking est un harcèlement obsessionnel par des tentatives de prise de contact, des commentaires et des messages nombreux et répétés, par exemple en cas d'amour déçu. Faites des captures d'écran des messages, bloquez le compte et signalez-le sur https://evigilance.ma/fr ; si les messages contiennent des menaces, vous pouvez porter plainte en ligne via https://plaintes.pmp.ma/.",
     keywords: [
       "stalking",
       "c'est quoi le stalking",
@@ -1664,7 +1664,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Qu'est-ce qu'une menace en ligne ?",
     ],
     answer:
-      "Les cybermenaces sont des menaces de violence physique, pouvant aller jusqu'à la menace de mort, ou l'exercice d'une pression psychologique.",
+      "Les cybermenaces sont des menaces de violence physique, pouvant aller jusqu'à la menace de mort, ou l'exercice d'une pression psychologique. Toutes les formes de cyberviolence sont interdites par la loi : conservez les preuves (captures d'écran et liens), signalez le contenu sur https://evigilance.ma/fr et portez plainte auprès de la Police sur https://www.e-blagh.ma/ ou du parquet sur https://plaintes.pmp.ma/.",
     keywords: [
       "cybermenace",
       "cybermenaces",
@@ -1700,7 +1700,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi le dénigrement sous forme de photos ?",
     ],
     answer:
-      "Le dénigrement consiste à diffuser des rumeurs, des mensonges, des photos et des vidéos portant atteinte à la réputation.",
+      "Le dénigrement consiste à diffuser des rumeurs, des mensonges, des photos et des vidéos portant atteinte à la réputation. Faites des captures d'écran, puis signalez les contenus directement au réseau social et sur https://evigilance.ma/fr.",
     keywords: [
       "dénigrement",
       "c'est quoi le dénigrement",
@@ -1736,7 +1736,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi le doxing exactement ?",
     ],
     answer:
-      "Le doxing est la publication en ligne des informations personnelles de quelqu'un (adresse, numéro de téléphone) sans son accord, dans le but de lui nuire.",
+      "Le doxing est la publication en ligne des informations personnelles de quelqu'un (adresse, numéro de téléphone) sans son accord, dans le but de lui nuire. Faites des captures d'écran, puis signalez le contenu sur https://evigilance.ma/fr ; vous pouvez aussi déposer plainte en ligne via https://plaintes.pmp.ma/.",
     keywords: [
       "doxing",
       "c'est quoi le doxing",
@@ -1772,7 +1772,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Qu'est-ce que la mise à l'écart dans les groupes et les jeux ?",
     ],
     answer:
-      "L'exclusion est la mise à l'écart active de personnes dans des groupes sur les réseaux sociaux, les messageries ou dans les jeux en ligne.",
+      "L'exclusion est la mise à l'écart active de personnes dans des groupes sur les réseaux sociaux, les messageries ou dans les jeux en ligne. Ne restez jamais seul(e) : parlez-en à une personne de confiance, et signalez les contenus humiliants au réseau social ou sur https://evigilance.ma/fr.",
     keywords: [
       "exclusion",
       "l'exclusion en ligne",
@@ -1809,7 +1809,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi envoyé des messages hostiles et insultants ?",
     ],
     answer:
-      "Le flaming consiste à envoyer des messages hostiles et insultants.",
+      "Le flaming consiste à envoyer des messages hostiles et insultants. Fermez la porte à la violence : bloquez le compte de l'agresseur et signalez les messages sur https://evigilance.ma/fr.",
     keywords: [
       "flaming",
       "c'est quoi le flaming",
@@ -1844,7 +1844,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi le fraping dans les médias sociaux ?",
     ],
     answer:
-      "Le fraping est une intrusion dans les médias sociaux d'une personne pour y effectuer de fausses publications en son nom.",
+      "Le fraping est une intrusion dans les médias sociaux d'une personne pour y effectuer de fausses publications en son nom. Reprenez le contrôle du compte en changeant immédiatement le mot de passe, signalez les fausses publications au réseau social et sur https://evigilance.ma/fr, et portez plainte via https://plaintes.pmp.ma/ ou https://www.e-blagh.ma/.",
     keywords: [
       "fraping",
       "c'est quoi le fraping",
@@ -1880,7 +1880,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Qu'est-ce que le grooming, on m'a dit que mon enfant pourrait y être exposé ?",
     ],
     answer:
-      "Le grooming désigne des tentatives de prise de contact par des adultes (généralement de sexe masculin) sous une fausse identité afin de convaincre des enfants de les rencontrer en personne.",
+      "Le grooming désigne des tentatives de prise de contact par des adultes (généralement de sexe masculin) sous une fausse identité afin de convaincre des enfants de les rencontrer en personne. Si un enfant est concerné, contactez le numéro vert 2511 de l'ONDE (https://2511.ma/) et signalez les faits sur https://evigilance.ma/fr ; s'il s'agit d'images ou de vidéos d'abus sexuel sur des enfants, signalez-les sur https://report.iwf.org.uk/ma/.",
     keywords: [
       "grooming",
       "c'est quoi le grooming",
@@ -1918,7 +1918,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi l'usurpation d'identité avec de faux profils ?",
     ],
     answer:
-      "L'usurpation d'identité consiste en la publication de faux contenus, censés provenir des personnes concernées, mais diffusés en leur nom par usurpation d'identité ou avec de faux profils.",
+      "L'usurpation d'identité consiste en la publication de faux contenus, censés provenir des personnes concernées, mais diffusés en leur nom par usurpation d'identité ou avec de faux profils. Signalez le faux profil directement au réseau social et sur https://evigilance.ma/fr ; vous pouvez également porter plainte via https://plaintes.pmp.ma/ ou https://www.e-blagh.ma/.",
     keywords: [
       "usurpation d'identité",
       "c'est quoi l'usurpation d'identité",
@@ -1956,7 +1956,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Qu'est-ce que le trickery sous couvert de confidentialité ?",
     ],
     answer:
-      "L'outing (ou trickery) consiste à obtenir et divulguer des informations privées, compromettantes ou préjudiciables à la réputation, sous couvert de confidentialité ou d'une fausse identité.",
+      "L'outing (ou trickery) consiste à obtenir et divulguer des informations privées, compromettantes ou préjudiciables à la réputation, sous couvert de confidentialité ou d'une fausse identité. Faites des captures d'écran des échanges, puis signalez les contenus sur https://evigilance.ma/fr ou https://www.cyberconfiance.ma/signalment/.",
     keywords: [
       "outing",
       "trickery",
@@ -1993,7 +1993,7 @@ export const QA_DATABASE: QAEntry[] = [
       "C'est quoi le revenge porn exactement ?",
     ],
     answer:
-      "Le revenge porn est le partage de photos et vidéos intimes sans le consentement de la personne. C'est un acte de cyberviolence extrêmement grave, puni par la loi, même s'il n'arrive qu'une fois.",
+      "Le revenge porn est le partage de photos et vidéos intimes sans le consentement de la personne. C'est un acte de cyberviolence extrêmement grave, puni par la loi, même s'il n'arrive qu'une fois. Signalez le contenu sur https://evigilance.ma/fr, remplissez le formulaire de StopNCII (https://stopncii.org/?lang=fr-fr) si vous êtes majeur(e) ou celui de Take It Down (https://takeitdown.ncmec.org/fr/) pour un contenu pris avant 18 ans, et portez plainte via https://plaintes.pmp.ma/.",
     keywords: [
       "revenge porn",
       "c'est quoi le revenge porn",
@@ -2030,7 +2030,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Qu'est-ce que le chantage aux contenus intimes ?",
     ],
     answer:
-      "La sextorsion est un chantage sous la menace de publier des contenus intimes pour extorquer de l'argent ou des faveurs sexuelles.",
+      "La sextorsion est un chantage sous la menace de publier des contenus intimes pour extorquer de l'argent ou des faveurs sexuelles. Ne cédez pas au chantage : conservez les preuves, signalez sur https://evigilance.ma/fr et portez plainte via https://plaintes.pmp.ma/ ou https://www.e-blagh.ma/ ; si un enfant est concerné, le numéro vert 2511 (https://2511.ma/) peut vous orienter.",
     keywords: [
       "sextorsion",
       "c'est quoi la sextorsion",
@@ -2213,7 +2213,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Comment éviter que mon enfant voie des contenus inappropriés ?",
     ],
     answer:
-      "La cyberviolence résulte de tout acte comportant une intimidation envers un enfant en utilisant les technologies numériques. Cela inclut l'exposition à des contenus inappropriés. Les applications de contrôle parental permettent de filtrer les contenus inadaptés, de suivre l'activité en ligne et de limiter les temps de connexion.",
+      "La cyberviolence résulte de tout acte comportant une intimidation envers un enfant en utilisant les technologies numériques. Cela inclut l'exposition à des contenus inappropriés. Les applications de contrôle parental permettent de filtrer les contenus inadaptés, de suivre l'activité en ligne et de limiter les temps de connexion. Si le contenu a été diffusé sur un site pornographique, remplissez le formulaire https://reportcontent.google.com/forms/rtbf ; s'il s'agit d'images ou de vidéos d'abus sexuel sur des enfants, signalez-les sur https://report.iwf.org.uk/ma/, et le numéro vert 2511 (https://2511.ma/) peut vous orienter.",
     keywords: [
       "contenus inappropriés",
       "contenus choquants",
@@ -2241,7 +2241,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Les messages de haine sur les réseaux sont-ils interdits ?",
     ],
     answer:
-      "L'incitation au racisme, à la haine et à la radicalisation fait partie des cyberviolences que votre enfant pourrait rencontrer. La publication de propos en ligne, même sur des messageries, d'insultes, de menaces ou d'indications à la haine raciale, est punie par la loi. On ne dit pas en ligne ce que l'on ne dirait pas en situation de face à face.",
+      "L'incitation au racisme, à la haine et à la radicalisation fait partie des cyberviolences que votre enfant pourrait rencontrer. La publication de propos en ligne, même sur des messageries, d'insultes, de menaces ou d'indications à la haine raciale, est punie par la loi. On ne dit pas en ligne ce que l'on ne dirait pas en situation de face à face. Signalez les propos au réseau social et sur https://evigilance.ma/fr, et portez plainte auprès du parquet (https://plaintes.pmp.ma/) ou de la Police (https://www.e-blagh.ma/).",
     keywords: [
       "racisme",
       "haine",
@@ -2273,7 +2273,7 @@ export const QA_DATABASE: QAEntry[] = [
       "Comment protéger mon enfant des arnaques sur Internet ?",
     ],
     answer:
-      "L'utilisation des données personnelles à des fins criminelles — la fraude et l'escroquerie — est une forme de cyberviolence. Internet est un espace public : ne partagez jamais d'informations personnelles, vos données ont de la valeur, elles peuvent être commercialisées. Ne donnez aucune information personnelle sur Internet, même sur un formulaire d'inscription.",
+      "L'utilisation des données personnelles à des fins criminelles — la fraude et l'escroquerie — est une forme de cyberviolence. Internet est un espace public : ne partagez jamais d'informations personnelles, vos données ont de la valeur, elles peuvent être commercialisées. Ne donnez aucune information personnelle sur Internet, même sur un formulaire d'inscription. En cas de fraude ou d'escroquerie, conservez les preuves (captures d'écran et liens), signalez-les sur https://evigilance.ma/fr et portez plainte sur https://www.e-blagh.ma/ ou https://plaintes.pmp.ma/.",
     keywords: [
       "fraude",
       "escroquerie",
@@ -2758,5 +2758,36 @@ export const QA_DATABASE: QAEntry[] = [
       "conseils jeux vidéo en ligne",
     ],
     tags: ["jeux en ligne", "temps de jeu", "enfant", "règles"],
+  },
+  {
+    id: "6.27",
+    category: "informatif",
+    question: "Quelqu'un a publié une photo ou une vidéo humiliante de moi, que faire ?",
+    profiles: ["victime-mineure", "victime-majeure", "parent-tuteur", "enseignant-educateur", "temoin"],
+    parcours: ["informatif"],
+    sampleFormulations: [
+      "Quelqu'un a publié une photo humiliante de moi",
+      "Ils ont publié une vidéo de moi pour m'humilier",
+    ],
+    answer:
+      "La publication d'une photo ou d'une vidéo embarrassante ou humiliante de la victime est une forme de cyberviolence. Faites des captures d'écran, signalez la publication directement au réseau social puis sur https://evigilance.ma/fr ; si le contenu est intime, la suppression peut être demandée sur https://stopncii.org/?lang=fr-fr (adultes) ou https://takeitdown.ncmec.org/fr/ (contenu pris avant 18 ans).",
+    keywords: [
+      "photo humiliante",
+      "vidéo humiliante",
+      "photo embarrassante",
+      "vidéo embarrassante",
+      "publié une photo",
+      "publié une vidéo",
+      "photo de moi",
+      "vidéo de moi",
+      "photo gênante",
+      "publication humiliante",
+    ],
+    synonyms: [
+      "ils ont posté une photo pour se moquer de moi",
+      "une vidéo de moi circule sur les réseaux",
+      "photo postée pour me ridiculiser",
+    ],
+    tags: ["photo", "vidéo", "humiliation", "cyberviolence"],
   },
 ];

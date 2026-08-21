@@ -4,10 +4,10 @@ import { matchEntry, STRONG_TERMS } from "@/lib/chatbot/matcher";
 import { normalize } from "@/lib/chatbot/normalize";
 
 describe("matching engine (AGENTS.md §8)", () => {
-  it("contains exactly 74 entries with unique ids and no placeholders", () => {
-    expect(QA_DATABASE).toHaveLength(74);
+  it("contains exactly 75 entries with unique ids and no placeholders", () => {
+    expect(QA_DATABASE).toHaveLength(75);
     const ids = QA_DATABASE.map((entry) => entry.id);
-    expect(new Set(ids).size).toBe(74);
+    expect(new Set(ids).size).toBe(75);
     for (const entry of QA_DATABASE) {
       expect(entry.id).toMatch(/^\d+\.\d+$/);
       expect(entry.answer.length).toBeGreaterThan(0);
