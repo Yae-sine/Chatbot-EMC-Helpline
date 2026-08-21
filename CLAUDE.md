@@ -100,6 +100,11 @@ top-5 (never outside the 75 validated entries) → degraded serve at score ≥0.
   vetoed for third-person messages (`lib/router/route.ts`) because the flow's
   scripts address the person who feels the emotion. Never add comfort copy
   here — the flow's own validated opener is the reply.
+- **The emotional path ends on resources, not on silence.**
+  `lib/chatbot/flows/resources.ts` holds one `resources` step shared by
+  emotion-weather, breathing and grounding; every pill serves a validated QA
+  id through `qaAnswer` (3.1 / 3.7 / 3.4 / 4.5). Add a resource by adding a
+  label → id pair there, never by writing copy.
 - **The prompt must list the flow ids.** `buildUserPrompt` sends
   `FLOW_IDS_ALLOWED`; without that list the model cannot emit a flow id the
   validator accepts, so `route: "flow"` silently never works in production.

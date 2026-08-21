@@ -1,6 +1,11 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { looksFactual } from "@/lib/chatbot/emotion";
 import { askAgain, matchOption } from "./helpers";
+import {
+  RESOURCE_ENTRY_OPTION,
+  resourcesEntry,
+  resourcesStep,
+} from "./resources";
 
 // Module "Météo des Émotions" (Ressources Chatbot.docx.pdf — Guide technique,
 // Annexe). Intensity/emotion buttons include the emojis from the validated
@@ -57,17 +62,20 @@ const VALIDATION_SCRIPTS: Record<string, ValidationScript> = {
 export const ASSURANCE_MESSAGE =
   "Merci d'avoir pris ce moment pour vous. J'espère que cela vous a apporté un peu de calme. Souvenez-vous que cet exercice est un outil que vous possédez maintenant. Vous pouvez l'utiliser à tout moment où vous sentez la tempête monter. Prendre soin de soi est le premier pas. Le suivant, si vous le souhaitez, est de trouver un soutien extérieur. Personne ne devrait affronter cela seul(e).";
 
+function exerciseLabelFor(exercise: ExerciseId): string {
+  return exercise === "breathing-4-2-6"
+    ? "Oui, essayer l'exercice de respiration"
+    : "Oui, essayer l'exercice d'ancrage";
+}
+
 function proposalOutput(
   emotion: string,
   script: { text: string; exercise: ExerciseId },
 ): FlowOutput {
-  const exerciseLabel =
-    script.exercise === "breathing-4-2-6"
-      ? "Oui, essayer l'exercice de respiration"
-      : "Oui, essayer l'exercice d'ancrage";
+  const exerciseLabel = exerciseLabelFor(script.exercise);
   return {
     text: script.text,
-    options: [exerciseLabel, "Non, pas pour le moment"],
+    options: [exerciseLabel, RESOURCE_ENTRY_OPTION, "Non, pas pour le moment"],
     nextStep: "proposal",
     data: { emotion },
   };
@@ -111,15 +119,49 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
       return proposalOutput(emotion, script);
     }
     case "proposal": {
-      if (/non|pas pour le moment|merci/.test(rawMessage.toLowerCase())) {
-        return { text: ASSURANCE_MESSAGE };
-      }
       const emotion = state.data.emotion;
       const script = emotion ? VALIDATION_SCRIPTS[emotion] : undefined;
+      const exerciseLabel = script ? exerciseLabelFor(script.exercise) : null;
+
+      if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) {
+        // Consulting a resource must not cancel the exercise offer.
+        return {
+          ...resourcesEntry(exerciseLabel ? [exerciseLabel] : []),
+          data: emotion ? { emotion } : {},
+        };
+      }
+      if (/non|pas pour le moment|merci/.test(rawMessage.toLowerCase())) {
+        // The assurance message points at « un soutien extérieur »: keep the
+        // flow alive so that door is reachable instead of closing on it.
+        return {
+          text: ASSURANCE_MESSAGE,
+          options: [RESOURCE_ENTRY_OPTION, "Terminer"],
+          nextStep: "resources",
+          data: emotion ? { emotion } : {},
+        };
+      }
       if (!script) {
         return { text: ASSURANCE_MESSAGE };
       }
       return { text: "", switchTo: script.exercise };
+    }
+    case "resources": {
+      const emotion = state.data.emotion;
+      const script = emotion ? VALIDATION_SCRIPTS[emotion] : undefined;
+      const exerciseLabel = script ? exerciseLabelFor(script.exercise) : null;
+      const extra = exerciseLabel ? [exerciseLabel] : [];
+
+      if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) {
+        return { ...resourcesEntry(extra), data: emotion ? { emotion } : {} };
+      }
+      const output = resourcesStep(state, rawMessage, ASSURANCE_MESSAGE, extra);
+      if (output !== null) {
+        return output.nextStep === "resources" && emotion
+          ? { ...output, data: { emotion } }
+          : output;
+      }
+      // The exercise pill was chosen from the menu.
+      return script ? { text: "", switchTo: script.exercise } : { text: ASSURANCE_MESSAGE };
     }
     default:
       return { text: ASSURANCE_MESSAGE };

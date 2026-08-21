@@ -1,5 +1,7 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { ASSURANCE_MESSAGE } from "./emotion-weather";
+import { matchOption } from "./helpers";
+import { RESOURCE_ENTRY_OPTION, resourcesEntry, resourcesStep } from "./resources";
 
 // Technique d'ancrage sensoriel "5-4-3-2-1" — script verbatim from
 // Ressources Chatbot.docx.pdf. Validate-then-advance: the user decides when
@@ -44,8 +46,16 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
     };
   }
 
+  if (state.step === "resources") {
+    if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) return resourcesEntry();
+    return resourcesStep(state, rawMessage, ENDING) ?? { text: ENDING };
+  }
+
   if (state.step === "done") {
     const message = rawMessage.toLowerCase();
+    if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) {
+      return resourcesEntry();
+    }
     if (/terminer|merci|au revoir/.test(message)) {
       return { text: ENDING };
     }
@@ -61,7 +71,13 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
     }
     return {
       text: `${CLOSING} ${ASSURANCE_MESSAGE}`,
-      options: ["Refaire l'exercice d'ancrage", "Parcours psychologique", "Terminer"],
+      options: [
+        "Refaire l'exercice d'ancrage",
+        RESOURCE_ENTRY_OPTION,
+        "Parcours psychologique",
+        "Terminer",
+      ],
+      nextStep: "resources",
     };
   }
 

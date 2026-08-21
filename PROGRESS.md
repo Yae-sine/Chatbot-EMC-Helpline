@@ -21,6 +21,38 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
 
+### Ressources d'aide at the end of the emotional path (2026-08-21)
+- [x] **New shared step** (`lib/chatbot/flows/resources.ts`): a `resources`
+      menu used by emotion-weather, breathing and grounding. Pills map to
+      validated entries served verbatim through `qaAnswer` — 3.1 EMC-Helpline
+      (the entry answer), 3.7 sites de signalement, 3.4 suppression de contenus
+      intimes, 4.5 porter plainte. The only strings authored in the module are
+      pill labels (navigation, like « Retour aux formes » elsewhere)
+- [x] **Three entry points**: the emotional proposal now reads
+      `[exercice, « Voir les ressources d'aide », « Non, pas pour le moment »]`;
+      the refusal path keeps `ASSURANCE_MESSAGE` but no longer ends the
+      conversation on « trouver un soutien extérieur » — it offers that door;
+      and both exercises' final message gains the same pill next to
+      « Refaire… / Parcours psychologique / Terminer »
+- [x] **Consulting a resource never cancels the exercise offer**: the pending
+      exercise pill is carried through the menu, and choosing it still switches
+      to breathing/grounding. An off-menu question escapes via
+      `fallbackToMatcher`; a question the menu *does* answer (« Comment porter
+      plainte ? ») is served from the menu
+- [x] **No per-emotion mapping, on purpose**: the emotion does not reliably
+      indicate the cause (honte ≠ contenu intime), so the four resources are
+      offered and the person chooses. `state.data.emotion` is still carried if
+      reordering the menu is ever wanted
+- [x] **Tests**: 242 → 248 (`tests/flows.test.ts` — proposal options, verbatim
+      3.1/3.7/4.5, exercise-after-resources, « Terminer », on/off-menu
+      questions, both exercises' done step; `tests/route-flows.test.ts` — full
+      walk through the real `POST`). The pre-existing test asserting the
+      refusal path *ended* the flow was updated deliberately
+- [x] **Verified**: lint, typecheck, 248 tests, deterministic `npm run eval`
+      unchanged (98/172, strict 50/105 — no ids or routing touched), and a live
+      walk: proposal → resources → 3.1 → 3.7 → exercise → 12 phases → final
+      message with the pill → 3.1 → 3.4
+
 ### Informatif facettes: definition → definition + reporting route (2026-08-21)
 - [x] **15 answers enriched** (`data/qa-database.ts`): the 12 facettes served by
       the `parcours informatif` menu (6.7–6.18: stalking, cybermenaces,

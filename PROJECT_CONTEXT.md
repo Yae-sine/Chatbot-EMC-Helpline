@@ -95,6 +95,7 @@ lib/
     flows/                # 8 deterministic state machines (technical, juridique,
                           # informatif, psychologique, emotion-weather, breathing,
                           # grounding, guided-qualification) + helpers.ts,
+                          # resources.ts (shared « ressources d'aide » menu),
                           # index.ts orchestration (+ launchFlow)
   config/
     env.ts                # typed env access (loadConfig/loadDotEnv) — hybrid knobs
@@ -208,6 +209,15 @@ content.
   root (shared by intents and the hybrid router); `helpers.ts` provides
   `matchOption`, `askAgain` (state retained on bad input), `qaAnswer`
   (verbatim, throws on dead ids), `toResponse`.
+- **Ressources d'aide** (`lib/chatbot/flows/resources.ts`): a `resources` step
+  shared by emotion-weather, breathing and grounding. Reachable from the
+  emotional proposal (« Voir les ressources d'aide », next to the exercise),
+  from the refusal path, and from either exercise's final message. Each pill
+  serves a validated entry verbatim through `qaAnswer` — 3.1 EMC-Helpline
+  (the entry answer), 3.7 sites de signalement, 3.4 suppression de contenus
+  intimes, 4.5 porter plainte — so the only strings authored in that module
+  are pill labels. Consulting a resource never cancels a pending exercise
+  offer, and an off-menu question escapes via `fallbackToMatcher`.
 - **Intents** (`lib/chatbot/intents.ts`): explicit user-ask substring triggers
   that launch flows; deliberately disjoint from QA keywords/synonyms.
 - **Emotional gate** (`lib/chatbot/emotion.ts`): pure first-person

@@ -1,5 +1,7 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { ASSURANCE_MESSAGE } from "./emotion-weather";
+import { matchOption } from "./helpers";
+import { RESOURCE_ENTRY_OPTION, resourcesEntry, resourcesStep } from "./resources";
 
 // Respiration rythmée 4-2-6 (inspirer 4s, retenir 2s, expirer 6s) — exercise
 // defined in Ressources Chatbot.docx.pdf (technique de respiration). The
@@ -35,6 +37,9 @@ function cycleSteps(): CycleStep[] {
   return steps;
 }
 
+const CLOSING_LINE =
+  "D'accord. L'exercice de respiration « 4-2-6 » reste à votre disposition à tout moment. N'oubliez pas : l'EMC-Helpline est disponible 24h/24 et 7j/7 si vous avez besoin d'aide.";
+
 export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput {
   if (state.step === "start") {
     return {
@@ -44,12 +49,18 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
     };
   }
 
+  if (state.step === "resources") {
+    if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) return resourcesEntry();
+    return resourcesStep(state, rawMessage, CLOSING_LINE) ?? { text: CLOSING_LINE };
+  }
+
   if (state.step === "done") {
     const message = rawMessage.toLowerCase();
+    if (matchOption(rawMessage, [RESOURCE_ENTRY_OPTION]) >= 0) {
+      return resourcesEntry();
+    }
     if (/terminer|merci|au revoir/.test(message)) {
-      return {
-        text: "D'accord. L'exercice de respiration « 4-2-6 » reste à votre disposition à tout moment. N'oubliez pas : l'EMC-Helpline est disponible 24h/24 et 7j/7 si vous avez besoin d'aide.",
-      };
+      return { text: CLOSING_LINE };
     }
     if (message.includes("psychologique")) {
       return { text: "", switchTo: "parcours-psychologique" };
@@ -63,7 +74,13 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
     }
     return {
       text: `${ASSURANCE_MESSAGE}`,
-      options: ["Refaire l'exercice de respiration", "Parcours psychologique", "Terminer"],
+      options: [
+        "Refaire l'exercice de respiration",
+        RESOURCE_ENTRY_OPTION,
+        "Parcours psychologique",
+        "Terminer",
+      ],
+      nextStep: "resources",
     };
   }
 

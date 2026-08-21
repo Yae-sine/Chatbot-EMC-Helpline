@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { handleFlow } from "@/lib/chatbot/flows";
+import { qaAnswer } from "@/lib/chatbot/flows/helpers";
 import type { FlowState } from "@/types/flow";
 
 const start = (flowId: FlowState["flowId"]): FlowState => ({ flowId, step: "start", data: {} });
@@ -45,13 +46,94 @@ describe("handleFlow orchestration", () => {
     expect(s4.nextState?.flowId).toBe("grounding-5-4-3-2-1");
   });
 
-  it("a refusal at the proposal step ends the flow with the assurance message", () => {
+  it("a refusal at the proposal step keeps the assurance message and opens the resources door", () => {
+    // The message itself says the next step is « trouver un soutien
+    // extérieur »: the flow must stay alive so that door is reachable.
     const s1 = handleFlow(start("emotion-weather"), "");
     const s2 = handleFlow(s1.nextState as FlowState, "3");
     const s3 = handleFlow(s2.nextState as FlowState, "La colère");
     const s4 = handleFlow(s3.nextState as FlowState, "Non, pas pour le moment");
-    expect(s4.nextState).toBeNull();
     expect(s4.output.text).toContain("Personne ne devrait affronter cela seul(e)");
+    expect(s4.output.options).toEqual(["Voir les ressources d'aide", "Terminer"]);
+    expect(s4.nextState?.step).toBe("resources");
+  });
+
+  it("the proposal offers the resources door next to the exercise", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "3");
+    const s3 = handleFlow(s2.nextState as FlowState, "La peur");
+    expect(s3.output.options).toEqual([
+      "Oui, essayer l'exercice de respiration",
+      "Voir les ressources d'aide",
+      "Non, pas pour le moment",
+    ]);
+  });
+
+  it("resources serve validated answers verbatim and never cancel the exercise offer", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "3");
+    const s3 = handleFlow(s2.nextState as FlowState, "La peur");
+    const s4 = handleFlow(s3.nextState as FlowState, "Voir les ressources d'aide");
+
+    // Entry = the helpline itself (3.1), verbatim.
+    expect(s4.output.text).toBe(qaAnswer("3.1"));
+    expect(s4.output.options?.[0]).toBe("Oui, essayer l'exercice de respiration");
+    expect(s4.output.options).toContain("Les sites de signalement");
+    expect(s4.nextState?.step).toBe("resources");
+
+    const s5 = handleFlow(s4.nextState as FlowState, "Les sites de signalement");
+    expect(s5.output.text).toBe(qaAnswer("3.7"));
+    expect(s5.nextState?.step).toBe("resources");
+
+    // The exercise is still one tap away after browsing resources.
+    const s6 = handleFlow(s5.nextState as FlowState, "Oui, essayer l'exercice de respiration");
+    expect(s6.nextState?.flowId).toBe("breathing-4-2-6");
+  });
+
+  it("« Terminer » from the resources menu closes on the validated message", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "3");
+    const s3 = handleFlow(s2.nextState as FlowState, "La honte");
+    const s4 = handleFlow(s3.nextState as FlowState, "Voir les ressources d'aide");
+    const s5 = handleFlow(s4.nextState as FlowState, "Terminer");
+    expect(s5.output.text).toContain("Personne ne devrait affronter cela seul(e)");
+    expect(s5.nextState).toBeNull();
+  });
+
+  it("a question the menu answers is served, an off-menu one goes back to the matcher", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "3");
+    const s3 = handleFlow(s2.nextState as FlowState, "La peur");
+    const s4 = handleFlow(s3.nextState as FlowState, "Voir les ressources d'aide");
+
+    // « Comment porter plainte ? » is exactly what one pill offers.
+    const onMenu = handleFlow(s4.nextState as FlowState, "Comment porter plainte ?");
+    expect(onMenu.output.text).toBe(qaAnswer("4.5"));
+
+    // Anything else must not be trapped by the menu.
+    const offMenu = handleFlow(s4.nextState as FlowState, "C'est quoi le doxing ?");
+    expect(offMenu.output.fallbackToMatcher).toBe(true);
+  });
+
+  it("both exercises offer the resources door when they are done", () => {
+    for (const [flowId, pill] of [
+      ["breathing-4-2-6", "Refaire l'exercice de respiration"],
+      ["grounding-5-4-3-2-1", "Refaire l'exercice d'ancrage"],
+    ] as Array<[FlowState["flowId"], string]>) {
+      const done = handleFlow({ flowId, step: "done", data: {} }, "");
+      expect(done.output.options, flowId).toEqual([
+        pill,
+        "Voir les ressources d'aide",
+        "Parcours psychologique",
+        "Terminer",
+      ]);
+
+      const resources = handleFlow(done.nextState as FlowState, "Voir les ressources d'aide");
+      expect(resources.output.text, flowId).toBe(qaAnswer("3.1"));
+
+      const plainte = handleFlow(resources.nextState as FlowState, "Porter plainte");
+      expect(plainte.output.text, flowId).toBe(qaAnswer("4.5"));
+    }
   });
 
   it("a real question at the intensity step hands the message back to the matcher", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { POST } from "@/app/api/chat/route";
+import { qaAnswer } from "@/lib/chatbot/flows/helpers";
 
 interface ChatResponse {
   text: string;
@@ -20,6 +21,34 @@ async function post(body: Record<string, unknown>): Promise<ChatResponse> {
 }
 
 describe("route orchestration (AGENTS.md §8)", () => {
+  it("the météo des émotions ends on validated resources, through the real route", async () => {
+    const sessionId = "flow-resources-1";
+
+    const launch = await post({ message: "je veux faire la météo des émotions", sessionId });
+    expect(launch.flowId).toBe("emotion-weather");
+
+    const intensity = await post({ message: "3 - Très affecté(e) ⛈️", sessionId });
+    expect(intensity.text).toContain("sentiment le plus fort");
+
+    const emotion = await post({ message: "😨 La peur / l'anxiété", sessionId });
+    expect(emotion.options).toContain("Voir les ressources d'aide");
+
+    const resources = await post({ message: "Voir les ressources d'aide", sessionId });
+    expect(resources.text).toBe(qaAnswer("3.1"));
+    // The exercise offer survives the detour.
+    expect(resources.options).toContain("Oui, essayer l'exercice de respiration");
+
+    const sites = await post({ message: "Les sites de signalement", sessionId });
+    expect(sites.text).toBe(qaAnswer("3.7"));
+
+    // The route reports the flow that handled the turn; the switch shows in
+    // the served text and in who handles the next message.
+    const exercise = await post({ message: "Oui, essayer l'exercice de respiration", sessionId });
+    expect(exercise.text).toContain("inspirez pendant 4 secondes");
+    const firstPhase = await post({ message: "Continuer", sessionId });
+    expect(firstPhase.flowId).toBe("breathing-4-2-6");
+  });
+
   it("launches a flow from an explicit intent and keeps the session stateful", async () => {
     const sessionId = "flow-test-1";
 
