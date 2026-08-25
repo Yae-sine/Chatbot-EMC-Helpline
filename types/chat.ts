@@ -6,6 +6,8 @@ export interface ChatMessage {
   timestamp?: string;
   options?: string[];
   flowId?: string;
+  // Set while a timed exercise step is being guided (see FlowOutput.exercise).
+  exercise?: string;
   mode?: "static" | "llm" | "fallback";
   matchedId?: string | null;
   confidence?: number;
@@ -16,6 +18,8 @@ export interface ChatResponse {
   isCrisis: boolean;
   options?: string[];
   flowId?: string;
+  // Set while a timed exercise step is being guided (see FlowOutput.exercise).
+  exercise?: string;
   mode?: "static" | "llm" | "fallback";
   matchedId?: string | null;
   confidence?: number;

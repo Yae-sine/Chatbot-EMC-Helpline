@@ -68,7 +68,7 @@ export function technicalFlow(state: FlowState, rawMessage: string): FlowOutput 
       };
     case "content-type": {
       const index = matchOption(rawMessage, CONTENT_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const contentType = CONTENT_OPTIONS[index];
       if (contentType === "Une photo ou une vidéo") {
         return {
@@ -87,7 +87,7 @@ export function technicalFlow(state: FlowState, rawMessage: string): FlowOutput 
     }
     case "platform": {
       const index = matchOption(rawMessage, PLATFORM_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const platform = PLATFORM_OPTIONS[index];
       if (state.data.contentType === "Une photo ou une vidéo") {
         return {
@@ -106,7 +106,7 @@ export function technicalFlow(state: FlowState, rawMessage: string): FlowOutput 
     }
     case "nature": {
       const index = matchOption(rawMessage, NATURE_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       return {
         text: orientationText(
           state.data.contentType ?? "",

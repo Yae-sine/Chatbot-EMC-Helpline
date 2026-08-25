@@ -53,6 +53,8 @@ export interface RouteOutcome {
   isCrisis?: boolean;
   options?: string[];
   flowId?: string;
+  /** set when the launched turn guides a timed exercise (see FlowOutput) */
+  exercise?: string;
   matchedId?: string | null;
   /** non-null only when a flow was launched */
   flowStateToPersist?: FlowState | null;
@@ -206,6 +208,7 @@ export async function routeLLM(input: RouteLLMInput): Promise<RouteOutcome> {
         text: output.text,
         options: output.options,
         flowId: classified.flow as string,
+        exercise: output.exercise,
         flowStateToPersist: nextState,
         contextDelta: ctx,
       };

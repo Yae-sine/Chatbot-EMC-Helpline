@@ -1,10 +1,11 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state (2026-08-25): `lint` and `typecheck` clean, `test` 272
+Last verified state (2026-08-25): `lint` and `typecheck` clean, `test` 284
 passed (+ 2 skipped live-only), `build` passing, and the hybrid + emotional
 paths verified live against the three providers (`npm run eval` green at the
-last backend change: 172 cases / 14 categories — untouched since).
+last backend change: 172 cases / 14 categories — ids, copy and retrieval
+untouched since).
 
 ## Current Milestone
 
@@ -20,6 +21,70 @@ session context, per-client rate limits, classifier-result caching and a
 golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### Leaving a flow, and the breathing guide that would not stop (2026-08-25)
+- [x] **The breathing animation stayed on screen after the exercise ended**
+      (reported). `breathingFlow` hosts the « ressources d'aide » menu itself
+      (`lib/chatbot/flows/breathing.ts`), so its `nextStep` keeps pointing
+      *inside* the breathing flow and `app/api/chat/route.ts` kept stamping
+      `flowId: "breathing-4-2-6"` on the assurance message, the menu and every
+      resource answer — and the UI keyed the orb on `flowId`
+- [x] **New `FlowOutput.exercise`** (`types/flow.ts`), surfaced as `exercise`
+      on the chat response (`types/chat.ts`): set by `breathing.ts` and
+      `grounding.ts` on their own guided steps only — intro, the 12 cycle
+      turns, the « refaire » restart — and never on the menus or closing lines
+      the same flow also serves. The flow is the only thing that knows which of
+      its steps are the exercise, so it is the flow that says so
+- [x] **The guide now appears on the intro too**: the launch branches build
+      their own JSON, so the intro reached the client without the marker. All
+      three launch doors pass it through — explicit intent, emotional
+      statement, and the LLM router's `flow` route (`lib/router/route.ts`).
+      Through the emotional path the turn still reports
+      `flowId: "emotion-weather"` (the `switchTo` happens inside `handleFlow`),
+      which is exactly why keying on `flowId` could never have worked
+- [x] **Only the newest turn animates** (`components/chat/ChatWindow.tsx`,
+      `MessageBubble.tsx`): a completed exercise used to leave a dozen pulsing
+      circles in the scrollback. The orb is a live aid, not transcript content
+- [x] **A question now interrupts any parcours and ends it** (requested).
+      `askAgain` (`lib/chatbot/flows/helpers.ts`) becomes the single « that is
+      not one of my options » response: `looksFactual` → `fallbackToMatcher`,
+      otherwise the unchanged re-prompt plus `unmatched: true`. Threaded
+      through all 20 call sites in `technical`, `juridique`, `informatif`,
+      `psychologique`, `grounding`, `emotion-weather` and `resources`; the
+      three hand-rolled `looksFactual` checks collapse into it
+- [x] **…or when the knowledge base can answer it** (`app/api/chat/route.ts`
+      step 3): an `unmatched` message that `matchEntry` resolves with high
+      confidence also clears the flow and is answered — so « les articles de
+      loi au Maroc », with no question mark, escapes too. Deterministic matcher
+      only, no LLM call, so no added latency or quota cost. « ok » and « je ne
+      sais pas » still re-prompt and keep the parcours
+- [x] **Two swallowed-message bugs in the same family**: a question mid
+      breathing-cycle was consumed as if it were « Continuer »
+      (`breathing.ts` advanced on any input), and at the emotion-weather
+      `proposal` step anything that was not a refusal was read as « oui » and
+      **started a breathing exercise nobody asked for**. Both now escape
+- [x] **`flowId` is no longer reported on a flow's closing turn**
+      (`route.ts`): the state is already cleared there, so announcing an id
+      told the client a parcours was running when it was not
+- [x] **Tests**: 272 → 284. `tests/route-flows.test.ts` — one test **inverted
+      deliberately**: it asserted that « C'est quoi l'EMC ? » mid-`parcours-juridique`
+      returned « Je n'ai pas bien compris » and kept the user trapped; it now
+      asserts the parcours ends and the answer is served, and stays as the
+      guard pointing the other way. New: the reported journey turn by turn
+      (12 cycles marked, menu turns not), the launch-turn marker through both
+      doors, a question mid-exercise, a KB-answerable message with no question
+      mark, a menu pill containing « ? » still advancing the flow, and a
+      hesitation keeping the parcours. `tests/flows.test.ts` — `exercise`
+      marking, the `proposal` fix, and every parcours releasing a question
+      while surviving « ok ». `tests/message-bubble.test.tsx` — the orb renders
+      on the newest exercise turn, not when superseded, and not for a message
+      that merely carries the breathing `flowId`
+- [x] **Verified**: lint, typecheck, 284 tests, `build`, deterministic
+      `npm run eval` unchanged, plus the reported journey walked in headless
+      Chrome — intro 1 orb, exactly 1 orb through the 12 cycles, **0 on the
+      assurance message, the ressources menu and every resource answer** — and
+      an interruption walk: « comment porter plainte ? » mid-cycle answers,
+      drops the orb and the pills, and the turn after it is plain Q&A
 
 ### UI upgrade — reading-first conversation, always-on urgence (2026-08-25)
 - [x] **Paragraph breaks no longer swallowed** (`components/chat/MessageText.tsx`,
@@ -553,13 +618,11 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   is not caught by the literal keyword "me scarifier" — documented as a
   KNOWNGAP in the eval corpus; extending `CRISIS_PROTOCOL` needs encadrante
   sign-off (AGENTS.md §6).
-- **Flow continuation intercepts general questions (softened).** While a flow
-  is active any non-option message gets the flow's `askAgain`, and the flow now
-  **survives** the bad input (state retained, re-prompts). The user still needs
-  to say "Terminer"/farewell to leave the parcours and get QA answers mid-flow.
-  The guided tree is exempt: free text mid-tree clears the flow and is answered
-  by the general matcher (`fallbackToMatcher`). Acceptable by design, worth a
-  UX note.
+- ~~**Flow continuation intercepts general questions.**~~ Fixed 2026-08-25: a
+  message a flow cannot use leaves the parcours when it reads as a question
+  (`looksFactual`) or the knowledge base answers it with high confidence;
+  anything else still re-prompts and keeps the flow. See the dated Completed
+  entry.
 - **In-memory sessions die on server restart/scale-out** (deployment caveat for
   long-running flows; harmless for this phase — no persistence per §10).
 - **The CI suite runs without provider keys**, so `ci:true` corpus cases only

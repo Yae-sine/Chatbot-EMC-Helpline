@@ -120,6 +120,7 @@ async function resolveAnswer(
     isCrisis: false,
     options: outcome.options ?? emotionPill(message, outcome.matchedId),
     flowId: outcome.flowId,
+    exercise: outcome.exercise,
     mode: outcome.mode,
     matchedId: outcome.matchedId,
   });
@@ -225,9 +226,17 @@ export async function POST(request: Request) {
     const state = getFlowState(sessionId);
     if (state) {
       const { output, nextState } = handleFlow(state, message);
-      // Free text mid-guided-tree abandons the tree: clear the flow and let
-      // the general matcher answer this message normally.
-      if (output.fallbackToMatcher) {
+      // A flow releases the user in two ways. Either it says so outright
+      // (`fallbackToMatcher`: the message reads as a question), or it reports
+      // that the message matched none of its options (`unmatched`) and the
+      // validated knowledge base turns out to answer it with high confidence.
+      // Both clear the flow and re-run the message through the normal
+      // pipeline, so the assistant goes back to being a plain chatbot.
+      // `matchEntry` here is the same deterministic matcher step 5 uses — no
+      // LLM call, so no added latency or quota cost.
+      const answerable =
+        output.unmatched && matchEntry(message, QA_DATABASE).confidence === "high";
+      if (output.fallbackToMatcher || answerable) {
         setFlowState(sessionId, null);
         return resolveAnswer(message, sessionId, request);
       }
@@ -250,7 +259,11 @@ export async function POST(request: Request) {
         text: output.text,
         isCrisis: false,
         options: output.options,
-        flowId: state.flowId,
+        // Only while a flow is still running: on its closing turn the state is
+        // already cleared, and reporting an id there tells the client a
+        // parcours is active when it is not.
+        flowId: nextState ? state.flowId : undefined,
+        exercise: output.exercise,
       });
     }
   }
@@ -265,6 +278,7 @@ export async function POST(request: Request) {
       isCrisis: false,
       options: output.options,
       flowId: intent,
+      exercise: output.exercise,
     });
   }
 
@@ -282,6 +296,7 @@ export async function POST(request: Request) {
       isCrisis: false,
       options: output.options,
       flowId: "emotion-weather",
+      exercise: output.exercise,
     });
   }
 

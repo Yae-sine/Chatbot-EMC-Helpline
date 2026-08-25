@@ -80,6 +80,7 @@ export function ChatWindow({
                     key={message.id}
                     message={message}
                     isGroupStart={index === 0}
+                    isLatest={message.id === last?.id}
                   />
                 ))}
               </div>

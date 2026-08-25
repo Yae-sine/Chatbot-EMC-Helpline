@@ -31,4 +31,14 @@ export interface FlowOutput {
   // general matcher instead (used by the guided tree: free text mid-tree
   // abandons the tree and gets a normal Q&A answer).
   fallbackToMatcher?: boolean;
+  // Set when the message matched none of the options this step offers. The
+  // route uses it to decide whether the knowledge base can answer the message
+  // instead — flows stay pure and never call the matcher themselves
+  // (AGENTS.md §11).
+  unmatched?: boolean;
+  // Marks a turn that guides a timed exercise, so the client can render the
+  // matching companion. Set only on the exercise's own guided steps, never on
+  // the menus or closing lines the same flow also serves — those keep the
+  // flow's id but are not the exercise.
+  exercise?: FlowId;
 }

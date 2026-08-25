@@ -145,6 +145,82 @@ describe("handleFlow orchestration", () => {
     expect(s3.nextState?.step).toBe("intensity");
   });
 
+  it("marks only the guided steps of an exercise, not the menus it also serves", () => {
+    // The breathing flow hosts the assurance message and the whole ressources
+    // menu, so `flowId` stays "breathing-4-2-6" long after the exercise ends.
+    // `exercise` is what tells the client the orb still belongs on screen.
+    const intro = handleFlow(start("breathing-4-2-6"), "");
+    expect(intro.output.exercise).toBe("breathing-4-2-6");
+
+    let state = intro.nextState as FlowState;
+    for (let i = 0; i < 12; i += 1) {
+      const turn = handleFlow(state, "Continuer");
+      expect(turn.output.exercise, `cycle turn ${i + 1}`).toBe("breathing-4-2-6");
+      state = turn.nextState as FlowState;
+    }
+
+    // Past the last cycle nothing is the exercise any more.
+    const assurance = handleFlow(state, "Continuer");
+    expect(assurance.output.exercise).toBeUndefined();
+    expect(assurance.output.options).toContain("Voir les ressources d'aide");
+
+    const resources = handleFlow(assurance.nextState as FlowState, "Voir les ressources d'aide");
+    expect(resources.output.exercise).toBeUndefined();
+    expect(resources.output.text).toBe(qaAnswer("3.1"));
+
+    const pill = handleFlow(resources.nextState as FlowState, "Porter plainte");
+    expect(pill.output.exercise).toBeUndefined();
+    expect(pill.output.text).toBe(qaAnswer("4.5"));
+  });
+
+  it("a question mid-exercise is answered instead of advancing the cycle", () => {
+    const intro = handleFlow(start("breathing-4-2-6"), "");
+    const midCycle = handleFlow(intro.nextState as FlowState, "Comment porter plainte ?");
+    expect(midCycle.output.fallbackToMatcher).toBe(true);
+
+    // « Continuer » still advances, and a non-question does not kill the exercise.
+    const advanced = handleFlow(intro.nextState as FlowState, "Continuer");
+    expect(advanced.output.exercise).toBe("breathing-4-2-6");
+    expect(advanced.output.fallbackToMatcher).toBeUndefined();
+  });
+
+  it("a question at the exercise proposal no longer starts the exercise", () => {
+    const s1 = handleFlow(start("emotion-weather"), "");
+    const s2 = handleFlow(s1.nextState as FlowState, "3 - Très affecté(e) ⛈️");
+    const s3 = handleFlow(s2.nextState as FlowState, "😨 La peur / l'anxiété");
+
+    // The proposal step used to read anything that was not a refusal as « oui »
+    // and switch straight into the breathing flow.
+    const question = handleFlow(s3.nextState as FlowState, "Comment porter plainte ?");
+    expect(question.output.fallbackToMatcher).toBe(true);
+    expect(question.output.exercise).toBeUndefined();
+
+    const accepted = handleFlow(s3.nextState as FlowState, "Oui, essayer l'exercice de respiration");
+    expect(accepted.output.exercise).toBe("breathing-4-2-6");
+  });
+
+  it("every parcours releases a real question, and survives a hesitation", () => {
+    const parcours = [
+      "parcours-technique",
+      "parcours-juridique",
+      "parcours-informatif",
+      "parcours-psychologique",
+    ] as const;
+
+    for (const flowId of parcours) {
+      const launch = handleFlow(start(flowId), "");
+      const menu = launch.nextState as FlowState;
+
+      const question = handleFlow(menu, "C'est quoi l'EMC ?");
+      expect(question.output.fallbackToMatcher, flowId).toBe(true);
+
+      const hesitation = handleFlow(menu, "ok");
+      expect(hesitation.output.fallbackToMatcher, flowId).toBeUndefined();
+      expect(hesitation.output.unmatched, flowId).toBe(true);
+      expect(hesitation.nextState?.step, flowId).toBe(menu.step);
+    }
+  });
+
   it("a wrong answer at any step keeps the flow alive (state is retained)", () => {
     const s1 = handleFlow(start("parcours-juridique"), "");
     const s2 = handleFlow(s1.nextState as FlowState, "message hors sujet");

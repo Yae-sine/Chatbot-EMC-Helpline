@@ -54,6 +54,7 @@ export function AppShell() {
             isCrisis: data.isCrisis,
             options: data.options,
             flowId: data.flowId,
+            exercise: data.exercise,
             mode: data.mode,
             matchedId: data.matchedId,
             confidence: data.confidence,

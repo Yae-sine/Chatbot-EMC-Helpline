@@ -1,5 +1,6 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { ASSURANCE_MESSAGE } from "./emotion-weather";
+import { looksFactual } from "@/lib/chatbot/emotion";
 import { matchOption } from "./helpers";
 import { RESOURCE_ENTRY_OPTION, resourcesEntry, resourcesStep } from "./resources";
 
@@ -46,6 +47,7 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
       text: "Les exercices de respiration sont reconnus pour leurs effets bénéfiques sur la gestion du stress, de l'anxiété et des émotions négatives : ils ralentissent le rythme cardiaque et aident à calmer le corps et l'esprit. Nous allons respirer en rythme : inspirez pendant 4 secondes, retenez votre souffle 2 secondes, puis expirez lentement pendant 6 secondes.",
       options: ["Continuer"],
       nextStep: "c1-inhale",
+      exercise: "breathing-4-2-6",
     };
   }
 
@@ -70,6 +72,7 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
         text: "Nous allons refaire l'exercice : inspirez pendant 4 secondes, retenez votre souffle 2 secondes, puis expirez lentement pendant 6 secondes.",
         options: ["Continuer"],
         nextStep: "c1-inhale",
+        exercise: "breathing-4-2-6",
       };
     }
     return {
@@ -90,6 +93,12 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
     };
   }
 
+  // Cycle steps advance on any input, so a question used to be swallowed as if
+  // it were « Continuer ». Answer it and leave the exercise instead.
+  if (looksFactual(rawMessage)) {
+    return { text: "", fallbackToMatcher: true };
+  }
+
   const steps = cycleSteps();
   const index = steps.findIndex((s) => `c${s.cycle}-${s.phase}` === state.step);
   if (index < 0) {
@@ -104,5 +113,6 @@ export function breathingFlow(state: FlowState, rawMessage: string): FlowOutput 
     text: steps[index].text,
     options: ["Continuer"],
     nextStep: next ? `c${next.cycle}-${next.phase}` : "done",
+    exercise: "breathing-4-2-6",
   };
 }

@@ -92,12 +92,9 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
       };
     case "intensity": {
       const index = matchOption(rawMessage, INTENSITY_OPTIONS);
-      if (index < 0) {
-        // A real question must not be trapped by askAgain: hand it back to the
-        // general matcher (same escape as the guided tree, guided.ts).
-        if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
-        return askAgain(state);
-      }
+      // askAgain hands a real question back to the general matcher instead of
+      // trapping it in the re-prompt (flows/helpers.ts).
+      if (index < 0) return askAgain(state, rawMessage);
       return {
         text: EMOTION_QUESTION,
         options: EMOTION_OPTIONS,
@@ -107,14 +104,11 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
     }
     case "emotion": {
       const index = matchOption(rawMessage, EMOTION_OPTIONS);
-      if (index < 0) {
-        if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
-        return askAgain(state);
-      }
+      if (index < 0) return askAgain(state, rawMessage);
       const emotion = EMOTION_OPTIONS[index];
       const script = VALIDATION_SCRIPTS[emotion];
       if (!script) {
-        return askAgain(state);
+        return askAgain(state, rawMessage);
       }
       return proposalOutput(emotion, script);
     }
@@ -140,6 +134,10 @@ export function emotionWeatherFlow(state: FlowState, rawMessage: string): FlowOu
           data: emotion ? { emotion } : {},
         };
       }
+      // Anything else was read as « oui » and fell through to the exercise, so
+      // an unrelated question silently started a breathing session. A question
+      // leaves the flow instead; only a real acceptance starts the exercise.
+      if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
       if (!script) {
         return { text: ASSURANCE_MESSAGE };
       }

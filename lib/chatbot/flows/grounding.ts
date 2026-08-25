@@ -1,5 +1,6 @@
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { ASSURANCE_MESSAGE } from "./emotion-weather";
+import { looksFactual } from "@/lib/chatbot/emotion";
 import { matchOption } from "./helpers";
 import { RESOURCE_ENTRY_OPTION, resourcesEntry, resourcesStep } from "./resources";
 
@@ -43,6 +44,7 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
       text: "Parfait. Cet exercice s'appelle « 5-4-3-2-1 ». Il aide à se reconnecter au moment présent en utilisant vos cinq sens. Installez-vous confortablement et suivez-moi, étape par étape.",
       options: ["Continuer"],
       nextStep: "view",
+      exercise: "grounding-5-4-3-2-1",
     };
   }
 
@@ -67,6 +69,7 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
         text: "Parfait. Cet exercice s'appelle « 5-4-3-2-1 ». Il aide à se reconnecter au moment présent en utilisant vos cinq sens. Installez-vous confortablement et suivez-moi, étape par étape.",
         options: ["Continuer"],
         nextStep: "view",
+        exercise: "grounding-5-4-3-2-1",
       };
     }
     return {
@@ -87,6 +90,9 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
   }
   const isValidation = /continuer|suivant|d'accord|ok|next|oui|prêt|prête/.test(message);
   if (!isValidation && rawMessage.trim() !== "") {
+    // A question mid-exercise is answered rather than swallowed by the
+    // "prenez votre temps" nudge; it ends the exercise (flows/helpers.ts).
+    if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
     return askAgainValidation(state.step);
   }
 
@@ -99,6 +105,7 @@ export function groundingFlow(state: FlowState, rawMessage: string): FlowOutput 
     text: stepText(state.step),
     options: ["Continuer"],
     nextStep: next ? next.step : "done",
+    exercise: "grounding-5-4-3-2-1",
   };
 }
 
@@ -107,5 +114,7 @@ function askAgainValidation(step: string): FlowOutput {
     text: "Prenez tout votre temps. Quand vous êtes prêt(e), cliquez sur « Continuer ».",
     options: ["Continuer"],
     nextStep: step,
+    unmatched: true,
+    exercise: "grounding-5-4-3-2-1",
   };
 }

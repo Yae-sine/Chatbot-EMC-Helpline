@@ -72,7 +72,7 @@ export function juridiqueFlow(state: FlowState, rawMessage: string): FlowOutput 
       return menuIntro();
     case "menu": {
       const index = matchOption(rawMessage, MENU_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const topic = MENU_OPTIONS[index];
       if (topic === "Terminer") return closing();
       if (topic === "Les autorités où porter plainte") return autoritesIntro();
@@ -85,7 +85,7 @@ export function juridiqueFlow(state: FlowState, rawMessage: string): FlowOutput 
     }
     case "autorites": {
       const index = matchOption(rawMessage, AUTORITES_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const autorite = AUTORITES_OPTIONS[index];
       if (autorite === "Terminer") return closing();
       if (autorite === "Retour au menu") return menuIntro();
@@ -101,13 +101,13 @@ export function juridiqueFlow(state: FlowState, rawMessage: string): FlowOutput 
       if (index === 0) return autoritesIntro();
       if (index === 1) return menuIntro();
       if (index === 2) return closing();
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     case "back": {
       const index = matchOption(rawMessage, BACK_OPTIONS);
       if (index === 0) return menuIntro();
       if (index === 1) return closing();
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     default:
       return closing();

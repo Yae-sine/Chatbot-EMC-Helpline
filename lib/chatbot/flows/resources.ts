@@ -10,7 +10,6 @@
 // Shared by emotion-weather, breathing and grounding so the menu exists once.
 
 import type { FlowOutput, FlowState } from "@/types/flow";
-import { looksFactual } from "@/lib/chatbot/emotion";
 import { askAgain, matchOption, qaAnswer } from "./helpers";
 
 /** Pill label → validated QA entry, served verbatim. */
@@ -55,12 +54,9 @@ export function resourcesStep(
     return null;
   }
   const index = matchOption(rawMessage, RESOURCE_OPTIONS);
-  if (index < 0) {
-    // A real question mid-menu is answered by the general matcher rather than
-    // re-prompted (same escape as the guided tree and the météo).
-    if (looksFactual(rawMessage)) return { text: "", fallbackToMatcher: true };
-    return askAgain(state);
-  }
+  // A real question mid-menu is answered by the general matcher rather than
+  // re-prompted; askAgain owns that escape (flows/helpers.ts).
+  if (index < 0) return askAgain(state, rawMessage);
   const label = RESOURCE_OPTIONS[index];
   if (label === "Terminer") return { text: closing };
 

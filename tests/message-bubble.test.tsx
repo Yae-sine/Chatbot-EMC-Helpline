@@ -35,14 +35,25 @@ describe("MessageBubble", () => {
     expect(alert.getAttribute("data-crisis")).not.toBeNull();
   });
 
-  it("attaches the breathing exercise only to the breathing flow", () => {
-    const { unmount } = render(
-      <MessageBubble message={assistant({ flowId: "breathing-4-2-6" })} />,
-    );
+  it("guides the breathing exercise on the newest exercise turn", () => {
+    render(<MessageBubble message={assistant({ exercise: "breathing-4-2-6" })} isLatest />);
     expect(screen.getByRole("group", { name: t("fr", "breathingLabel") })).not.toBeNull();
-    unmount();
+  });
 
-    render(<MessageBubble message={assistant({ flowId: "parcours-juridique" })} />);
+  it("drops the guide once the exercise turn is superseded", () => {
+    // The orb is a live aid, not transcript content: a scrollback of a dozen
+    // pulsing circles is the opposite of what the exercise is for.
+    render(
+      <MessageBubble message={assistant({ exercise: "breathing-4-2-6" })} isLatest={false} />,
+    );
+    expect(screen.queryByRole("group", { name: t("fr", "breathingLabel") })).toBeNull();
+  });
+
+  it("does not guide a turn that merely belongs to the breathing flow", () => {
+    // The breathing flow also serves the assurance message and the whole
+    // ressources menu, so `flowId` alone kept the animation running long after
+    // the exercise was over.
+    render(<MessageBubble message={assistant({ flowId: "breathing-4-2-6" })} isLatest />);
     expect(screen.queryByRole("group", { name: t("fr", "breathingLabel") })).toBeNull();
   });
 

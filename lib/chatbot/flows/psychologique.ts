@@ -43,7 +43,7 @@ export function parcoursPsychologiqueFlow(state: FlowState, rawMessage: string):
       return menuIntro();
     case "menu": {
       const index = matchOption(rawMessage, MENU_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const topic = MENU_OPTIONS[index];
       if (topic === "Terminer") return closing();
       if (topic === EMOTION_SUPPORT_OPTION) {
@@ -85,7 +85,7 @@ export function parcoursPsychologiqueFlow(state: FlowState, rawMessage: string):
       const index = matchOption(rawMessage, BACK_OPTIONS);
       if (index === 0) return menuIntro();
       if (index === 1) return closing();
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     default:
       return closing();

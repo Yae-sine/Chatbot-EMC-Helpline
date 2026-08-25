@@ -11,6 +11,9 @@ interface MessageBubbleProps {
   message: ChatMessage;
   /** First message of a same-role run: it carries the avatar, name and time. */
   isGroupStart?: boolean;
+  /** Newest message in the conversation. The breathing guide is a live aid,
+   *  not transcript content, so only the newest turn animates one. */
+  isLatest?: boolean;
 }
 
 function Timestamp({ value, className }: { value: string; className?: string }) {
@@ -21,7 +24,11 @@ function Timestamp({ value, className }: { value: string; className?: string }) 
   );
 }
 
-export function MessageBubble({ message, isGroupStart = true }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isGroupStart = true,
+  isLatest = false,
+}: MessageBubbleProps) {
   if (message.role === "user") {
     return (
       <div className={cn("flex animate-message-in flex-col items-end", !isGroupStart && "mt-1.5")}>
@@ -68,7 +75,10 @@ export function MessageBubble({ message, isGroupStart = true }: MessageBubblePro
       ) : (
         <div className="max-w-[60ch] text-message text-foreground">
           <MessageText text={message.text} />
-          {message.flowId === "breathing-4-2-6" && <BreathingPulse />}
+          {/* Keyed on `exercise`, not `flowId`: the breathing flow also serves
+              the assurance message and the whole ressources menu, so its id
+              stays on turns that are no longer the exercise. */}
+          {message.exercise === "breathing-4-2-6" && isLatest && <BreathingPulse />}
         </div>
       )}
     </article>

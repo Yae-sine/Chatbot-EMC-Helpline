@@ -117,7 +117,7 @@ export function informatifFlow(state: FlowState, rawMessage: string): FlowOutput
       return menuIntro();
     case "menu": {
       const index = matchOption(rawMessage, MENU_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const topic = MENU_OPTIONS[index];
       if (topic === "Terminer") return closing();
       if (topic === "Les formes du cyberharcèlement") {
@@ -156,7 +156,7 @@ export function informatifFlow(state: FlowState, rawMessage: string): FlowOutput
     }
     case "facette": {
       const index = matchOption(rawMessage, FACETTE_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const facette = FACETTE_OPTIONS[index];
       return {
         text: qaAnswer(FACETTE_ANSWERS[facette] ?? "6.1"),
@@ -176,11 +176,11 @@ export function informatifFlow(state: FlowState, rawMessage: string): FlowOutput
           "facette",
         );
       }
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     case "risques": {
       const index = matchOption(rawMessage, RISKS_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const risque = RISKS_OPTIONS[index];
       if (risque === "Retour au menu") return menuIntro();
       if (risque === "Terminer") return closing();
@@ -202,11 +202,11 @@ export function informatifFlow(state: FlowState, rawMessage: string): FlowOutput
           "risques",
         );
       }
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     case "prevention": {
       const index = matchOption(rawMessage, PREVENTION_OPTIONS);
-      if (index < 0) return askAgain(state);
+      if (index < 0) return askAgain(state, rawMessage);
       const topic = PREVENTION_OPTIONS[index];
       if (topic === "Retour au menu") return menuIntro();
       if (topic === "Terminer") return closing();
@@ -228,7 +228,7 @@ export function informatifFlow(state: FlowState, rawMessage: string): FlowOutput
           "prevention",
         );
       }
-      return askAgain(state);
+      return askAgain(state, rawMessage);
     }
     default:
       return closing();

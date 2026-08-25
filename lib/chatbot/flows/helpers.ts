@@ -1,4 +1,5 @@
 import { normalize } from "../normalize";
+import { looksFactual } from "../emotion";
 import type { ChatResponse } from "@/types/chat";
 import type { FlowOutput, FlowState } from "@/types/flow";
 import { QA_DATABASE } from "@/data/qa-database";
@@ -18,15 +19,30 @@ export function matchOption(rawMessage: string, options: string[]): number {
   return -1;
 }
 
-export function askAgain(state?: FlowState): FlowOutput {
+const ASK_AGAIN_TEXT =
+  "Je n'ai pas bien compris. Veuillez choisir l'une des options proposées.";
+
+/**
+ * The single response for "that message is not one of my options".
+ *
+ * A real question must not be trapped by the re-prompt: `looksFactual` sends it
+ * straight back to the general matcher, which ends the flow (the route clears
+ * the state and answers normally). Everything else re-prompts and is flagged
+ * `unmatched`, so the route can still let the knowledge base take the message
+ * if it matches one with high confidence.
+ *
+ * `rawMessage` is optional only because a few call sites re-prompt without a
+ * user message (a flow re-asking itself); omitting it keeps today's behaviour.
+ */
+export function askAgain(state?: FlowState, rawMessage?: string): FlowOutput {
+  if (rawMessage !== undefined && looksFactual(rawMessage)) {
+    return { text: "", fallbackToMatcher: true };
+  }
   // Keep the current step when possible: a single misunderstood message must
   // never wipe the guided parcours (AGENTS.md: flows are stateful).
   return state
-    ? {
-        text: "Je n'ai pas bien compris. Veuillez choisir l'une des options proposées.",
-        nextStep: state.step,
-      }
-    : { text: "Je n'ai pas bien compris. Veuillez choisir l'une des options proposées." };
+    ? { text: ASK_AGAIN_TEXT, nextStep: state.step, unmatched: true }
+    : { text: ASK_AGAIN_TEXT, unmatched: true };
 }
 
 // Verbatim validated answer from the Q&A database, used by the guided

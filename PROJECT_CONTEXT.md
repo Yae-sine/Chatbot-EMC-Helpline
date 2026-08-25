@@ -164,7 +164,12 @@ app/api/chat/route.ts  (Node.js Route Handler)
   │  3. isFarewell(message)       ──> clears any active flow
   │  4. pending clarification?    ──> deterministic answer/"1"/"2"/question text
   │  5. handleFlow(state, msg)    ──> active flow drives the reply (guided tree
-  │                                   also learns the session profile)
+  │                                   also learns the session profile). A
+  │                                   message the flow can't use leaves the
+  │                                   parcours when it reads as a question
+  │                                   (looksFactual) or the KB answers it with
+  │                                   high confidence — state cleared, message
+  │                                   re-run through steps 7-9
   │  6. detectIntent(message)     ──> explicit ask -> launch a flow
   │  6b. isEmotionalStatement(msg) ──> opens emotion-weather (validated opener)
   │  7. matchEntry(...) high confidence -> validated answer (mode "static")
@@ -227,6 +232,16 @@ content.
   intimes, 4.5 porter plainte — so the only strings authored in that module
   are pill labels. Consulting a resource never cancels a pending exercise
   offer, and an off-menu question escapes via `fallbackToMatcher`.
+- **Leaving a flow** (`lib/chatbot/flows/helpers.ts` + route step 5): `askAgain`
+  is the single "that is not one of my options" response. It returns
+  `fallbackToMatcher` for a question (`looksFactual`) and otherwise re-prompts
+  with `unmatched: true`, which lets the route hand the message to the
+  knowledge base when `matchEntry` is confident. Either way the flow state is
+  cleared, so the assistant falls back to plain Q&A.
+- **Exercise turns** carry `FlowOutput.exercise` (surfaced as `exercise` on the
+  chat response). The breathing and grounding flows also host the ressources
+  menu, so their `flowId` outlives the exercise; `exercise` is what marks the
+  guided steps themselves and is what the client renders the companion on.
 - **Intents** (`lib/chatbot/intents.ts`): explicit user-ask substring triggers
   that launch flows; deliberately disjoint from QA keywords/synonyms.
 - **Emotional gate** (`lib/chatbot/emotion.ts`): pure first-person
