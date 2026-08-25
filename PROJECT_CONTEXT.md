@@ -64,19 +64,28 @@ app/
   api/chat/route.ts       # POST backend endpoint (the only backend)
 components/
   chat/                   # chat-specific UI
-    ChatWindow.tsx        # message list + grouping + auto-scroll + composer wiring
-    MessageBubble.tsx     # user / assistant / crisis bubble rendering
+    ChatWindow.tsx        # message list + grouping + follow-scroll + composer wiring
+    MessageBubble.tsx     # user bubble / assistant prose / crisis alert panel
+    MessageText.tsx       # paragraph-preserving answer rendering (splits on \n\n)
     ChatInput.tsx         # auto-growing textarea composer
     QuickReplies.tsx      # clickable option pills under the latest message
     TypingIndicator.tsx   # "typing" dots
     BreathingPulse.tsx    # animated 4-2-6 circle for the breathing flow
+    SystemNotice.tsx      # client-side transport failure + retry (not a message)
     LinkifiedText.tsx     # safe target="_blank" link rendering
   layout/                 # app shell
     AppShell.tsx          # client component owning all chat state
+    EmergencyBar.tsx      # always-on 19 / 177 / 2511 tel: strip
     Header.tsx / Sidebar.tsx / Footer.tsx / ThemeToggle.tsx
   ui/                     # primitives (shadcn-style): Button, Card, Badge,
                           # Avatar, Logo
 lib/
+  ui/                     # frontend-only helpers (client hooks + shared UI data)
+    use-stick-to-bottom.ts  # follow the conversation only while near the bottom
+    use-focus-trap.ts     # modal focus trap + Escape (sidebar drawer)
+    use-media-query.ts    # SSR-safe matchMedia
+    emergency.ts          # the three validated emergency numbers (keys only)
+    greeting.ts           # greeting factory + currentTime()
   chatbot/                # pure, unit-testable logic (no React)
     normalize.ts          # lowercase, strip accents/punctuation
     safety.ts             # crisis detection (runs FIRST)
@@ -282,35 +291,51 @@ content.
 
 - **Pages:** single page `app/page.tsx` → `AppShell`. No routing.
 - **State management:** plain local React state inside `AppShell.tsx`
-  (`messages`, `isTyping`, `sidebarOpen`, `inputValue`, `composerFocusSignal`).
-  No global store, no context, no server state.
+  (`messages`, `isTyping`, `sidebarOpen`, `inputValue`, `composerFocusSignal`,
+  `failedMessage`, plus an `AbortController` ref). No global store, no context,
+  no server state.
 - **API integration:** `sendMessage` in `AppShell.tsx` POSTs `{ message,
-  sessionId }` to `/api/chat`; on error the assistant replies with the
-  `emptyMessage` string.
+  sessionId }` to `/api/chat` with an abort signal; a transport failure sets
+  `failedMessage` and renders a `SystemNotice` with a retry — it is not pushed
+  into the thread as an assistant message.
 - **Chat UX:**
   - A greeting message (limits + emergency numbers) is pushed at conversation
-    start; its quick reply launches the guided qualification tree.
-  - `QuickReplies` under the latest assistant message send an option
-    immediately via `onSend`.
+    start by `createGreeting()` (`lib/ui/greeting.ts`); its quick reply
+    launches the guided qualification tree.
+  - `QuickReplies` render inside the message column under the latest assistant
+    message and send an option immediately via `onSend`.
   - Sidebar `TOPICS` insert a validated prompt into the composer via
     `selectPrompt` (focus signal).
-  - `ChatWindow` groups consecutive same-role messages, shows a timestamp per
-    group, auto-scrolls on new messages/typing.
-  - `MessageBubble`: user bubbles right-aligned (teal); assistant left with
-    avatar; crisis responses render with a red bubble + `crisisNotice` label.
+  - `ChatWindow` groups consecutive same-role messages, shows the avatar, name
+    and timestamp once per group, and follows new content only while the reader
+    is near the bottom (`lib/ui/use-stick-to-bottom.ts`); otherwise a
+    "back to latest" button appears.
+  - `MessageBubble`: user messages are right-aligned teal bubbles; ordinary
+    assistant answers are borderless prose (~15px/1.7, measure capped at 60ch)
+    rendered through `MessageText` so blank-line-separated parts keep their
+    paragraphs; crisis responses are the only filled, bordered, accent-barred
+    panel and carry `role="alert"` plus the `crisisNotice` label.
   - `TypingIndicator` shown while awaiting a response.
 - **Layout:** viewport-locked shell (`h-dvh`) so the composer stays pinned;
-  `Header` (sticky, mobile menu button, status badge, new-chat, theme toggle),
-  `Sidebar` (drawer on mobile, static on `lg+`), `Footer`. Max content width
-  1440px, chat column max 768px.
+  `Header` (sticky, mobile menu button, status badge, new-chat with a confirm
+  step, theme toggle), `EmergencyBar` (always-on `tel:` strip for 19 / 177 /
+  2511), `Sidebar` (drawer below `lg`, static at `lg+`). The `Footer` renders
+  inside the sidebar rather than under the conversation, so it costs no
+  viewport height. Max content width 1440px, chat column max 768px.
 - **Theming:** class-based dark mode — `.dark` on `<html>`, applied by an
   inline script in `layout.tsx` (reads `localStorage.theme`, falls back to
-  `prefers-color-scheme`) to avoid FOUC; `ThemeToggle` toggles the class and
-  persists. Design tokens + `@custom-variant dark` defined in `globals.css`.
+  `prefers-color-scheme`) to avoid FOUC; `ThemeToggle` reads the class through
+  `useSyncExternalStore` and persists the choice. Design tokens (warm-neutral
+  surfaces, teal accent, radius/shadow/link/success/emergency families) +
+  `@custom-variant dark` defined in `globals.css`.
 - **i18n:** all UI copy via `t("fr", key)` from `lib/i18n.ts`; Arabic dict is
   scaffolded but empty (this phase).
-- **A11y:** reduced-motion media query, focus-visible rings, aria-labels, sr-only
-  text for the typing indicator.
+- **A11y:** skip link, a real `<h1>`, `role="log"` message list (new answers are
+  announced) with `role="alert"` nested for crisis, `role="status"` for typing
+  and for the breathing phase, a genuine modal drawer below `lg` (focus trap,
+  Escape, focus return, `inert` when closed), reduced-motion media query with a
+  static breathing variant, focus-visible rings, ≥40px touch targets, and
+  AA-verified contrast in both themes.
 
 ## 7. Database
 

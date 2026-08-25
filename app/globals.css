@@ -2,72 +2,108 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Design tokens. Warm-neutral surfaces with teal as the single trust accent.
+   Every foreground/background pair below was checked against WCAG AA (>=4.5:1
+   for body copy, >=3:1 for UI chrome) in both themes — this product is read by
+   people in distress, often on a phone in bad light. */
 :root {
   color-scheme: light;
 
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #faf8f5;
+  --foreground: #1c1917;
 
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1c1917;
 
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #f3efe9;
+  --muted-foreground: #6b6560;
 
-  --border: #e2e8f0;
-  --input: #cbd5e1;
+  --border: #e8e2d9;
+  --input: #d6cec2;
   --ring: #0d9488;
 
   --primary: #0f766e;
   --primary-foreground: #ffffff;
 
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
+  --secondary: #f3efe9;
+  --secondary-foreground: #1c1917;
 
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --accent: #f3efe9;
+  --accent-foreground: #1c1917;
 
-  --destructive: #dc2626;
+  --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
 
   --bubble-user: #0f766e;
   --bubble-user-foreground: #ffffff;
-  --bubble-crisis: #991b1b;
-  --bubble-crisis-foreground: #fef2f2;
+  --bubble-crisis: #7f1d1d;
+  --bubble-crisis-foreground: #fff1f1;
+  --bubble-crisis-accent: #ef4444;
+
+  /* Links must stay recognisable as links, so they are deliberately not teal
+     (teal is the accent) and get a second value for the crisis panel, where a
+     blue on dark red would be unreadable. */
+  --link: #1d4ed8;
+  --link-on-crisis: #fecaca;
+
+  --success: #0b6b4f;
+  --success-soft: #e6f4ee;
+  --success-border: #b7e0cf;
+
+  /* Emergency chrome: urgent but calm, and deliberately a different hue from
+     --bubble-crisis so the always-on strip never competes with an actual
+     crisis answer. */
+  --emergency: #9a4a06;
+  --emergency-soft: #fdf3e7;
+  --emergency-border: #f0d9b8;
+  --emergency-accent: #b45309;
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: #0b1120;
-  --foreground: #e2e8f0;
+  --background: #141311;
+  --foreground: #ece7e0;
 
-  --card: #101827;
-  --card-foreground: #e2e8f0;
+  --card: #1c1a18;
+  --card-foreground: #ece7e0;
 
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
+  --muted: #24211e;
+  --muted-foreground: #a8a29a;
 
-  --border: #1e293b;
-  --input: #334155;
+  --border: #2e2a26;
+  --input: #46403a;
   --ring: #2dd4bf;
 
   --primary: #2dd4bf;
-  --primary-foreground: #042f2e;
+  --primary-foreground: #04322c;
 
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
+  --secondary: #24211e;
+  --secondary-foreground: #ece7e0;
 
-  --accent: #1e293b;
-  --accent-foreground: #e2e8f0;
+  --accent: #24211e;
+  --accent-foreground: #ece7e0;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #fef2f2;
+  --destructive: #f87171;
+  --destructive-foreground: #2a0b0b;
 
   --bubble-user: #14b8a6;
-  --bubble-user-foreground: #042f2e;
-  --bubble-crisis: #b91c1c;
-  --bubble-crisis-foreground: #fef2f2;
+  --bubble-user-foreground: #04302a;
+  --bubble-crisis: #6b1a1a;
+  --bubble-crisis-foreground: #ffdcdc;
+  --bubble-crisis-accent: #f87171;
+
+  --link: #93c5fd;
+  --link-on-crisis: #fecaca;
+
+  --success: #6ee7b7;
+  --success-soft: #10281f;
+  --success-border: #2f5d4a;
+
+  --emergency: #fbbf6b;
+  --emergency-soft: #2a1c0c;
+  --emergency-border: #4a3413;
+  --emergency-accent: #fbbf6b;
 }
 
 @theme inline {
@@ -92,17 +128,44 @@
   --color-bubble-user-foreground: var(--bubble-user-foreground);
   --color-bubble-crisis: var(--bubble-crisis);
   --color-bubble-crisis-foreground: var(--bubble-crisis-foreground);
+  --color-bubble-crisis-accent: var(--bubble-crisis-accent);
+  --color-link: var(--link);
+  --color-link-on-crisis: var(--link-on-crisis);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-emergency: var(--emergency);
+  --color-emergency-soft: var(--emergency-soft);
+  --color-emergency-border: var(--emergency-border);
+  --color-emergency-accent: var(--emergency-accent);
   --font-sans: var(--font-geist-sans);
 }
 
 @theme {
-  --animate-message-in: message-in 0.3s ease-out;
-  --animate-fade-in: fade-in 0.4s ease-out both;
+  /* Radius scale — the previous UI had none and hardcoded rounded-* per
+     component, so nothing shared a curvature. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  --shadow-raise: 0 1px 2px -1px rgb(28 25 23 / 0.08), 0 2px 8px -2px rgb(28 25 23 / 0.06);
+  --shadow-overlay: 0 8px 32px -8px rgb(28 25 23 / 0.24), 0 2px 8px -4px rgb(28 25 23 / 0.16);
+
+  /* Reading size for answer prose: the validated answers average 409 and reach
+     776 characters, so they get document typography, not chat-UI typography. */
+  --text-message: 0.9375rem;
+  --text-message--line-height: 1.7;
+
+  --animate-message-in: message-in 0.24s ease-out both;
+  --animate-emerge: emerge 0.22s ease-out both;
 
   @keyframes message-in {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -110,12 +173,14 @@
     }
   }
 
-  @keyframes fade-in {
+  @keyframes emerge {
     from {
       opacity: 0;
+      transform: translateY(3px) scale(0.98);
     }
     to {
       opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 }
@@ -133,6 +198,11 @@ body {
 .chat-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  /* Chrome's scroll anchoring re-adjusts scrollTop when content above the
+     anchor changes height (avatars decoding, a quick-reply block unmounting).
+     In a conversation that reads as the reader being dragged away from the
+     newest answer. */
+  overflow-anchor: none;
 }
 
 .chat-scroll::-webkit-scrollbar {
@@ -155,5 +225,18 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The global override above collapses the breathing orb's transition to
+     0.01ms, which makes it *snap* between sizes — worse than no animation for
+     the person the exercise is meant to settle. Pin the size instead; the
+     phase label still guides the breathing. */
+  .breathing-orb {
+    transform: none !important;
+  }
+
+  /* The duration overrides above do not touch scroll-behavior. */
+  .chat-scroll {
+    scroll-behavior: auto !important;
   }
 }

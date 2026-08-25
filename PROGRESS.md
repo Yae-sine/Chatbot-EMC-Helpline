@@ -1,10 +1,10 @@
 # Project Progress — EMC Helpline Chatbot
 
 Implementation tracker. Mirrors `PROJECT_CONTEXT.md` for the current milestone.
-Last verified state (2026-08-20): `lint` and `typecheck` clean, `test` 242
-passed (+ 2 skipped live-only), `npm run eval` green (172 cases / 14
-categories), `build` passing, and the hybrid + emotional paths verified live
-against the three providers.
+Last verified state (2026-08-25): `lint` and `typecheck` clean, `test` 272
+passed (+ 2 skipped live-only), `build` passing, and the hybrid + emotional
+paths verified live against the three providers (`npm run eval` green at the
+last backend change: 172 cases / 14 categories — untouched since).
 
 ## Current Milestone
 
@@ -20,6 +20,110 @@ session context, per-client rate limits, classifier-result caching and a
 golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
+
+### UI upgrade — reading-first conversation, always-on urgence (2026-08-25)
+- [x] **Paragraph breaks no longer swallowed** (`components/chat/MessageText.tsx`,
+      new): flows compose replies from several validated entries joined by a
+      blank line (`lib/chatbot/flows/guided.ts:356,398`,
+      `psychologique.ts:78`), but the bubble had no `whitespace-pre-line`, so a
+      700-character answer arrived as one unbroken block. The new component
+      splits on `/\n{2,}/` into `<p>` elements and renders `LinkifiedText`
+      inside each — text byte-identical, shape restored
+- [x] **Emergency numbers are now persistently visible on every breakpoint**
+      (`components/layout/EmergencyBar.tsx` + `lib/ui/emergency.ts`, new): they
+      previously lived only in the sidebar, a closed drawer below `lg`, so on a
+      phone they were two interactions away. A slim always-on strip renders 19 /
+      177 / 2511 as one-tap `tel:` links; the sidebar card gained the same
+      links. No new content — the numbers and service names are the validated
+      ones already in `sidebarSafetyText`, the greeting and the crisis protocol
+- [x] **Design direction « calme éditorial »** (`app/globals.css`,
+      `components/chat/MessageBubble.tsx`): assistant answers are borderless
+      prose (avatar + name + time header, `--text-message` 15px/1.7, measure
+      capped at 60ch ≈ 72 characters per line) instead of chat bubbles; only the
+      user's own words stay bubbled. Warm-neutral surfaces replace the cold
+      slate in both themes, teal kept as the single accent
+- [x] **Crisis rendering is more unmistakable, not less**: it is now the only
+      filled, bordered, accent-barred treatment in the conversation, carries
+      `role="alert"` (nested inside the log's polite region so it announces
+      assertively and once) and keeps the `crisisNotice` label verbatim
+- [x] **New token families** (`app/globals.css`): a radius scale and
+      `--shadow-raise|overlay` (there were none — every component hardcoded its
+      own), plus `--link` / `--link-on-crisis`, `--success-*` and
+      `--emergency-*`. These close the three escapes from the token system:
+      `LinkifiedText`'s hardcoded `text-blue-700` (unreadable on the dark-red
+      crisis panel and on the dark theme card), Badge's `emerald-*` and the
+      Sidebar's `amber-*`
+- [x] **Sidebar is a real dialog below `lg`** (`components/layout/Sidebar.tsx`,
+      `lib/ui/use-focus-trap.ts` + `use-media-query.ts`, new): Escape closes,
+      focus moves in and is trapped, focus returns to the menu button, and the
+      panel is `inert` while closed — it used to stay tabbable behind the
+      viewport edge. At `lg` and above it stays a plain static landmark
+- [x] **Footer moved into the sidebar** (`components/layout/Footer.tsx`): inside
+      the `h-dvh` shell a permanent footer cost ~74px of every screen. Header +
+      footer + composer took ~230px before the conversation got a pixel on a
+      360×640 phone
+- [x] **Auto-scroll no longer yanks the reader** (`lib/ui/use-stick-to-bottom.ts`,
+      new): following happens only while already near the bottom, otherwise a
+      « Revenir au dernier message » button appears. Following is instant on
+      purpose — with CSS `scroll-smooth` each animation frame fires a `scroll`
+      event from a position that is not yet the bottom, so the app marks the
+      reader as scrolled-away by its own scroll. `overflow-anchor: none` and a
+      `ResizeObserver` keep the pin through late avatar decode, webfont swap and
+      composer growth
+- [x] **Screen readers are told an answer arrived**: the message list is a
+      `role="log"` (implicit polite live region) — previously nothing announced
+      new messages; the typing indicator became a `role="status"`
+- [x] **Honest failure state** (`components/chat/SystemNotice.tsx`, new): a
+      transport failure used to be pushed into the thread as an assistant
+      message (« Je n'ai pas bien compris… »), blaming the user's words for a
+      network problem. It is now a distinct non-message row with a working
+      « Réessayer » that re-sends the failed turn. `emptyMessage` keeps its real
+      job: a 400 from the API
+- [x] **Breathing exercise made operable** (`components/chat/BreathingPulse.tsx`):
+      `role="group"`, the phase label in a polite `role="status"`, a visible
+      Pause / Reprendre control, and a genuine reduced-motion variant — the
+      global `0.01ms` override used to make the orb *snap* between sizes, worse
+      than no animation for the person it is meant to settle. The instruction is
+      now read before the orb
+- [x] **Quick replies moved into the message column**: they used to sit outside
+      `max-w-3xl` and stretch the full width, and a six-pill resources menu
+      permanently ate ~180px above the composer on a phone. Pills get ≥40px
+      touch targets and a staggered entrance. **The contract is unchanged: a
+      click still sends immediately.** The dead `greetingHint` key now renders
+      under the greeting's pill
+- [x] **Mobile fixes**: `interactiveWidget: "resizes-content"` (`app/layout.tsx`)
+      so the iOS keyboard resizes the `h-dvh` shell instead of covering the
+      composer; `text-base` composer below `sm` to stop iOS zoom-on-focus;
+      « Entrée pour envoyer » hidden where there is no Enter key; safe-area
+      padding under the composer
+- [x] **Shell bug sweep** (`components/layout/AppShell.tsx`): `newChat()` now
+      resets `isTyping` and aborts the in-flight request (it did neither);
+      `sendMessage` gained an `AbortController` and a `res.ok` check; the
+      greeting is a factory (`lib/ui/greeting.ts`) instead of a module constant
+      whose timestamp froze at module-eval time and was replayed on every reset
+- [x] **A11y chrome**: skip link to the conversation, a real `<h1>`,
+      `aria-pressed` on the theme toggle (via `useSyncExternalStore` over the
+      `.dark` class), a hint that sidebar topics fill the composer rather than
+      send, and a confirmation step before a non-empty conversation is wiped
+- [x] **`next.config.ts`: `agentRules: false`** — `next dev` was appending a
+      generated block to `AGENTS.md` on every start; that file carries the
+      binding project rules and is not Next's to edit
+- [x] **Tests**: 248 → 272. New `tests/message-text.test.tsx` (paragraph
+      splitting, single-newline preservation, links inside paragraphs, and a
+      lossless round-trip over all 75 validated answers),
+      `tests/emergency-bar.test.tsx` (the three `tel:` numbers — the regression
+      guard for the always-visible constraint),
+      `tests/quick-replies.test.tsx` (labels sent unmodified),
+      `tests/message-bubble.test.tsx` (crisis alert + label, breathing hook,
+      group headers), `tests/sidebar.test.tsx` (modal, Escape, inert-when-closed,
+      focus-in, validated prompts). `tests/linkify.test.tsx` passes unchanged
+- [x] **Verified**: lint, typecheck, 272 tests, `build` passing, plus a live
+      pass in headless Chrome at 360×740 and 1440×900 in both themes — crisis
+      answer, the emotional path through to the breathing orb, a multi-part
+      answer rendering as two paragraphs, the 200px-capped multi-line composer,
+      the offline error + retry, the mobile drawer, and `prefers-reduced-motion`
+      pinning the orb. Contrast measured in the live DOM: every text/background
+      pair ≥ 5.4:1 in light and ≥ 6.8:1 in dark (AA needs 4.5:1)
 
 ### Ressources d'aide at the end of the emotional path (2026-08-21)
 - [x] **New shared step** (`lib/chatbot/flows/resources.ts`): a `resources`
@@ -478,9 +582,11 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
 - **Embedding provider only supports Gemini** (`gemini-embedding-001`;
   the legacy `text-embedding-001` family is retired — 404 on v1beta);
   Groq/OpenRouter chains run lexical-only retrieval (not_available is caught).
-- **Limited UI/component tests.** `@testing-library/react`/`jsdom` configured;
-  only `LinkifiedText` is covered. `QuickReplies`/`BreathingPulse`/AppShell
-  session wiring have no component coverage yet.
+- **Partial UI/component tests.** `LinkifiedText`, `MessageText`,
+  `MessageBubble`, `QuickReplies`, `EmergencyBar` and `Sidebar` are covered.
+  `AppShell` session wiring, `ChatInput` key handling and
+  `useStickToBottom` have no component coverage yet — the last two need real
+  layout, so they were verified in a browser instead.
 - **Version defined in two places** (`package.json` + i18n string) and already
   out of sync.
 - **Crisis wording stored inline** in `data/crisis-protocol.ts`; if i18n for
@@ -531,8 +637,8 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
    most live cases end in `breaker-open`.
 4. **Re-test the Groq model choice**: `openai/gpt-oss-120b` produced
    `invalid_payload` on a third of its answered classifier calls.
-5. **Extend component tests** for `QuickReplies`, `BreathingPulse`, and the
-   AppShell session wiring (`@testing-library/react` already installed).
+5. **Extend component tests** to the AppShell session wiring and `ChatInput`
+   key handling — the rest of the chat components are now covered.
 6. **Align the version string** (`lib/i18n.ts` vs `package.json`).
 7. **Confirm `parcours` tagging** for entries 2.1, 2.2, 7.1–7.3 if routing UX
    needs it.

@@ -1,94 +1,92 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Header } from "@/components/layout/Header";
+import { EmergencyBar } from "@/components/layout/EmergencyBar";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Footer } from "@/components/layout/Footer";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { createGreeting, currentTime } from "@/lib/ui/greeting";
 import { t } from "@/lib/i18n";
-import type { ChatMessage } from "@/types/chat";
-
-function currentTime(): string {
-  return new Date().toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// Greeting pushed at the start of every conversation: the guide requires the
-// chatbot to state its limits (automated assistant) and the emergency numbers
-// explicitly from the very first message.
-const GREETING_MESSAGE: ChatMessage = {
-  id: "greeting-initial",
-  role: "assistant",
-  text: t("fr", "greeting"),
-  // Launch trigger for the guided qualification tree (see lib/chatbot/flows/guided.ts).
-  options: [t("fr", "guidedStartPrompt")],
-  timestamp: currentTime(),
-};
+import type { ChatMessage, ChatResponse } from "@/types/chat";
 
 export function AppShell() {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [GREETING_MESSAGE]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createGreeting()]);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [composerFocusSignal, setComposerFocusSignal] = useState(0);
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  // Set only for client-side transport failures; a server answer, including a
+  // 400, is a message and goes into the thread as one.
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
 
-  const sendMessage = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || isTyping) return;
+  const inFlight = useRef<AbortController | null>(null);
 
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", text: trimmed, timestamp: currentTime() },
-    ]);
-    setIsTyping(true);
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isTyping) return;
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, sessionId }),
-      });
-      const data = (await res.json()) as {
-        text: string;
-        isCrisis: boolean;
-        options?: string[];
-        flowId?: string;
-        mode?: "static" | "llm" | "fallback";
-        matchedId?: string | null;
-        confidence?: number;
-      };
+      setFailedMessage(null);
       setMessages((prev) => [
         ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: data.text,
-          isCrisis: data.isCrisis,
-          options: data.options,
-          flowId: data.flowId,
-          mode: data.mode,
-          matchedId: data.matchedId,
-          confidence: data.confidence,
-          timestamp: currentTime(),
-        },
+        { id: crypto.randomUUID(), role: "user", text: trimmed, timestamp: currentTime() },
       ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: t("fr", "emptyMessage"),
-          timestamp: currentTime(),
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
+      setIsTyping(true);
+
+      const controller = new AbortController();
+      inFlight.current = controller;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: trimmed, sessionId }),
+          signal: controller.signal,
+        });
+        const data = (await res.json()) as ChatResponse;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text: data.text,
+            isCrisis: data.isCrisis,
+            options: data.options,
+            flowId: data.flowId,
+            mode: data.mode,
+            matchedId: data.matchedId,
+            confidence: data.confidence,
+            timestamp: currentTime(),
+          },
+        ]);
+      } catch (error) {
+        // An abort is a deliberate reset, not a failure to report.
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setFailedMessage(trimmed);
+        }
+      } finally {
+        if (inFlight.current === controller) inFlight.current = null;
+        setIsTyping(false);
+      }
+    },
+    [isTyping, sessionId],
+  );
+
+  const retry = useCallback(() => {
+    if (!failedMessage) return;
+    // The failed turn's own user bubble is already in the thread; drop it so
+    // the retry does not duplicate it.
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      return last && last.role === "user" && last.text === failedMessage
+        ? prev.slice(0, -1)
+        : prev;
+    });
+    const text = failedMessage;
+    setFailedMessage(null);
+    void sendMessage(text);
+  }, [failedMessage, sendMessage]);
 
   const selectPrompt = (prompt: string) => {
     setInputValue(prompt);
@@ -97,14 +95,31 @@ export function AppShell() {
   };
 
   const newChat = () => {
-    setMessages([GREETING_MESSAGE]);
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setMessages([createGreeting()]);
     setInputValue("");
+    setFailedMessage(null);
+    setIsTyping(false);
     setSessionId(crypto.randomUUID());
   };
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
-      <Header onNewChat={newChat} onOpenSidebar={() => setSidebarOpen(true)} />
+      <a
+        href="#conversation"
+        className="sr-only rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
+      >
+        {t("fr", "skipToConversation")}
+      </a>
+
+      <Header
+        onNewChat={newChat}
+        onOpenSidebar={() => setSidebarOpen(true)}
+        canReset={messages.some((message) => message.role === "user")}
+      />
+      <EmergencyBar />
+
       <div className="mx-auto flex w-full max-w-[1440px] min-h-0 flex-1">
         <Sidebar
           open={sidebarOpen}
@@ -115,6 +130,8 @@ export function AppShell() {
           <ChatWindow
             messages={messages}
             isTyping={isTyping}
+            hasError={failedMessage !== null}
+            onRetry={retry}
             inputValue={inputValue}
             onInputChange={setInputValue}
             onSend={sendMessage}
@@ -122,7 +139,6 @@ export function AppShell() {
           />
         </main>
       </div>
-      <Footer />
     </div>
   );
 }

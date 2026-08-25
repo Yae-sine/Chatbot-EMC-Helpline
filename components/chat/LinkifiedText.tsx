@@ -16,7 +16,9 @@ export function LinkifiedText({ text }: LinkifiedTextProps) {
             href={segment.value}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium underline text-blue-700 decoration-current underline-offset-2 hover:opacity-75"
+            // `[[data-crisis]_&]` re-colours links inside the crisis panel: the
+            // default link blue is unreadable on dark red.
+            className="rounded-sm font-medium break-words text-link underline decoration-current underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [[data-crisis]_&]:text-link-on-crisis [[data-crisis]_&]:focus-visible:ring-offset-bubble-crisis"
           >
             {segment.value}
           </a>
