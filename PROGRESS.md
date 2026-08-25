@@ -22,6 +22,31 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
 
+### Urgence strip removed; numbers kept in the sidebar (2026-08-25)
+- [x] **Deleted `components/layout/EmergencyBar.tsx`** and its wiring in
+      `AppShell`, plus the two now-dead i18n keys (`emergencyBarLabel`,
+      `emergencyLabel`) from both dictionaries. `lib/ui/emergency.ts` and the
+      `--emergency-*` tokens stay — the sidebar card still uses them
+- [x] **Accepted trade-off**: below `lg` the sidebar is a closed drawer, so the
+      numbers are no longer visible without opening the menu. They are still
+      stated in the greeting at the start of every conversation and in every
+      crisis response, and the crisis path is untouched
+- [x] **Tests**: 284 → 283. `tests/emergency-bar.test.tsx` deleted, and its
+      three assertions moved into `tests/sidebar.test.tsx` (the tel: hrefs and
+      labels, the per-service aria-labels, and the cross-check that the numbers
+      shown are the ones `CRISIS_PROTOCOL` points to) so the AGENTS.md §6 guard
+      survives the component it used to live on
+- [x] **Corrected an earlier wrong fix**: `next.config.ts`'s `agentRules: false`
+      (added during the UI upgrade) is never read — the guard in
+      `node_modules/next/dist/server/lib/app-info-log.js` only checks whether an
+      AI agent is running and whether the block is already present, so
+      `npm run dev` kept appending to `AGENTS.md`. The option is removed;
+      `CLAUDE.md` now hosts the `<!-- BEGIN:nextjs-agent-rules -->` markers,
+      which is the supported escape hatch: `writeAgentFiles` skips `AGENTS.md`
+      when `CLAUDE.md` hosts the block. Verified by starting `next dev` and
+      confirming `AGENTS.md` stays byte-identical to `HEAD`
+- [x] **Verified**: lint, typecheck, 283 tests, `build` passing
+
 ### Leaving a flow, and the breathing guide that would not stop (2026-08-25)
 - [x] **The breathing animation stayed on screen after the exercise ended**
       (reported). `breathingFlow` hosts the « ressources d'aide » menu itself
@@ -86,7 +111,7 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
       an interruption walk: « comment porter plainte ? » mid-cycle answers,
       drops the orb and the pills, and the turn after it is plain Q&A
 
-### UI upgrade — reading-first conversation, always-on urgence (2026-08-25)
+### UI upgrade — reading-first conversation (2026-08-25)
 - [x] **Paragraph breaks no longer swallowed** (`components/chat/MessageText.tsx`,
       new): flows compose replies from several validated entries joined by a
       blank line (`lib/chatbot/flows/guided.ts:356,398`,
@@ -94,13 +119,13 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
       700-character answer arrived as one unbroken block. The new component
       splits on `/\n{2,}/` into `<p>` elements and renders `LinkifiedText`
       inside each — text byte-identical, shape restored
-- [x] **Emergency numbers are now persistently visible on every breakpoint**
-      (`components/layout/EmergencyBar.tsx` + `lib/ui/emergency.ts`, new): they
-      previously lived only in the sidebar, a closed drawer below `lg`, so on a
-      phone they were two interactions away. A slim always-on strip renders 19 /
-      177 / 2511 as one-tap `tel:` links; the sidebar card gained the same
-      links. No new content — the numbers and service names are the validated
-      ones already in `sidebarSafetyText`, the greeting and the crisis protocol
+- [x] **Emergency numbers are one-tap dialable** (`lib/ui/emergency.ts`, new):
+      the sidebar card renders 19 / 177 / 2511 as `tel:` links. No new content —
+      the numbers and service names are the validated ones already in
+      `sidebarSafetyText`, the greeting and the crisis protocol.
+      An always-on strip under the header was built first and **removed on
+      2026-08-25 at the encadrant's request** (see below); the numbers stay in
+      the sidebar only
 - [x] **Design direction « calme éditorial »** (`app/globals.css`,
       `components/chat/MessageBubble.tsx`): assistant answers are borderless
       prose (avatar + name + time header, `--text-message` 15px/1.7, measure
@@ -170,9 +195,10 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
       `aria-pressed` on the theme toggle (via `useSyncExternalStore` over the
       `.dark` class), a hint that sidebar topics fill the composer rather than
       send, and a confirmation step before a non-empty conversation is wiped
-- [x] **`next.config.ts`: `agentRules: false`** — `next dev` was appending a
-      generated block to `AGENTS.md` on every start; that file carries the
-      binding project rules and is not Next's to edit
+- [x] **Stopped `next dev` from editing `AGENTS.md`** — it appends a managed
+      block there on every start, and that file carries the binding project
+      rules. **Superseded 2026-08-25**: the `agentRules: false` config option
+      first used here is not read by Next at all (see the dated entry above)
 - [x] **Tests**: 248 → 272. New `tests/message-text.test.tsx` (paragraph
       splitting, single-newline preservation, links inside paragraphs, and a
       lossless round-trip over all 75 validated answers),
@@ -646,7 +672,7 @@ Identifiable from TODOs, `AGENTS.md`, and source-doc notes:
   the legacy `text-embedding-001` family is retired — 404 on v1beta);
   Groq/OpenRouter chains run lexical-only retrieval (not_available is caught).
 - **Partial UI/component tests.** `LinkifiedText`, `MessageText`,
-  `MessageBubble`, `QuickReplies`, `EmergencyBar` and `Sidebar` are covered.
+  `MessageBubble`, `QuickReplies` and `Sidebar` are covered.
   `AppShell` session wiring, `ChatInput` key handling and
   `useStickToBottom` have no component coverage yet — the last two need real
   layout, so they were verified in a browser instead.

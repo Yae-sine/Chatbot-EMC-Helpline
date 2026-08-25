@@ -75,7 +75,6 @@ components/
     LinkifiedText.tsx     # safe target="_blank" link rendering
   layout/                 # app shell
     AppShell.tsx          # client component owning all chat state
-    EmergencyBar.tsx      # always-on 19 / 177 / 2511 tel: strip
     Header.tsx / Sidebar.tsx / Footer.tsx / ThemeToggle.tsx
   ui/                     # primitives (shadcn-style): Button, Card, Badge,
                           # Avatar, Logo
@@ -333,10 +332,12 @@ content.
   - `TypingIndicator` shown while awaiting a response.
 - **Layout:** viewport-locked shell (`h-dvh`) so the composer stays pinned;
   `Header` (sticky, mobile menu button, status badge, new-chat with a confirm
-  step, theme toggle), `EmergencyBar` (always-on `tel:` strip for 19 / 177 /
-  2511), `Sidebar` (drawer below `lg`, static at `lg+`). The `Footer` renders
-  inside the sidebar rather than under the conversation, so it costs no
-  viewport height. Max content width 1440px, chat column max 768px.
+  step, theme toggle), `Sidebar` (drawer below `lg`, static at `lg+`). The
+  `Footer` renders inside the sidebar rather than under the conversation, so it
+  costs no viewport height. Max content width 1440px, chat column max 768px.
+  The emergency numbers (19 / 177 / 2511) live in the sidebar card as `tel:`
+  links — visible at `lg+`, one tap behind the menu button below it; the
+  greeting message states them at the start of every conversation.
 - **Theming:** class-based dark mode — `.dark` on `<html>`, applied by an
   inline script in `layout.tsx` (reads `localStorage.theme`, falls back to
   `prefers-color-scheme`) to avoid FOUC; `ThemeToggle` reads the class through

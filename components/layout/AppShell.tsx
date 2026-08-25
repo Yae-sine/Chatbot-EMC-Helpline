@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Header } from "@/components/layout/Header";
-import { EmergencyBar } from "@/components/layout/EmergencyBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { createGreeting, currentTime } from "@/lib/ui/greeting";
@@ -119,7 +118,6 @@ export function AppShell() {
         onOpenSidebar={() => setSidebarOpen(true)}
         canReset={messages.some((message) => message.role === "user")}
       />
-      <EmergencyBar />
 
       <div className="mx-auto flex w-full max-w-[1440px] min-h-0 flex-1">
         <Sidebar
