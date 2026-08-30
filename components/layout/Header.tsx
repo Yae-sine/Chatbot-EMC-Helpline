@@ -60,10 +60,6 @@ export function Header({ onNewChat, onOpenSidebar, canReset }: HeaderProps) {
           </div>
         </div>
 
-        <Badge variant="success" className="ml-2 hidden md:inline-flex">
-          <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
-          {t("fr", "statusReady")}
-        </Badge>
 
         <div className="ml-auto flex items-center gap-1">
           <div
