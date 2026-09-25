@@ -22,6 +22,22 @@ golden eval corpus (`npm run eval` prints the before/after table with keys).
 
 ## Completed
 
+### README rewritten to match the current project state (2026-09-25)
+- [x] **Rewrote `README.md`** (was a 32-line rule-based-only stub): now documents
+      the as-built state — 75 validated QA entries, 9-step request pipeline,
+      8 deterministic flows, mobile-first/a11y chat UX, static-first hybrid LLM
+      layer (confidence gate, Gemini → Groq → OpenRouter chain, RAG-light
+      retrieval, rate limits, no message persistence), `.env` setup, API
+      contract, test/eval layout (172 cases / 14 categories), content rules,
+      known limitations and docs map. English, full hybrid story (per owner
+      choice). Counts verified against code (75 ids incl. `id : "2.4"`,
+      8 `FlowId`, 172 `c("…")` corpus rows)
+- [x] **GitHub one-liner**: `Static-first helpline chatbot for cyberviolence
+      victims in Morocco — validated answers, crisis-first routing, 8 guided
+      flows.`
+- [x] **Verified**: lint (1 pre-existing `Badge` unused warning in
+      `Header.tsx`), typecheck clean, 283 tests passed (+ 2 skipped live-only)
+
 ### Urgence strip removed; numbers kept in the sidebar (2026-08-25)
 - [x] **Deleted `components/layout/EmergencyBar.tsx`** and its wiring in
       `AppShell`, plus the two now-dead i18n keys (`emergencyBarLabel`,
